@@ -8,6 +8,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
 import {
   Select,
   SelectContent,
@@ -38,6 +39,7 @@ export default function Orders() {
   const { menuItems, categories, menuLoading, addOrder, tableCount, getTableStatus } = usePOS();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { settings } = useRestaurantSettings();
   
   const [step, setStep] = useState<'table' | 'menu'>('table');
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
@@ -111,10 +113,13 @@ export default function Orders() {
     setCart(prev => prev.filter(item => item.id !== itemId));
   };
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.menuItemPrice * item.quantity), 0);
-  const tax = subtotal * 0.05;
-  const total = subtotal + tax;
+  // Tax-inclusive calculation: prices already include tax
+  const taxRate = (settings?.taxPercentage || 10) / 100;
+  const total = cart.reduce((sum, item) => sum + (item.menuItemPrice * item.quantity), 0);
+  const subtotal = total / (1 + taxRate);
+  const tax = total - subtotal;
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const currencySymbol = settings?.currencySymbol || '₹';
 
   const handleSelectTable = (tableNum: number) => {
     setSelectedTable(tableNum);
@@ -295,7 +300,7 @@ export default function Orders() {
                       <h3 className="font-medium text-sm line-clamp-1 pr-8">{item.name}</h3>
                       <p className="text-[10px] text-muted-foreground line-clamp-1">{item.description}</p>
                       <div className="flex items-center justify-between pt-1">
-                        <p className="font-bold text-primary text-sm">₹{item.price}</p>
+                        <p className="font-bold text-primary text-sm">{currencySymbol}{item.price}</p>
                         <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
                           <Plus className="h-4 w-4 text-primary" />
                         </div>
@@ -336,7 +341,7 @@ export default function Orders() {
                       <div key={item.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-xs truncate">{item.menuItemName}</p>
-                          <p className="text-[10px] text-muted-foreground">₹{item.menuItemPrice} × {item.quantity}</p>
+                          <p className="text-[10px] text-muted-foreground">{currencySymbol}{item.menuItemPrice} × {item.quantity}</p>
                         </div>
                         <div className="flex items-center gap-0.5">
                           <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQuantity(item.id, -1)}><Minus className="h-3 w-3" /></Button>
@@ -351,9 +356,9 @@ export default function Orders() {
 
                 {cart.length > 0 && (
                   <div className="space-y-1 pt-3 border-t">
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tax (5%)</span><span>₹{tax.toFixed(2)}</span></div>
-                    <div className="flex justify-between font-bold text-base pt-2 border-t"><span>Total</span><span className="text-primary">₹{total.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Subtotal (excl. tax)</span><span>{currencySymbol}{subtotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tax ({settings?.taxPercentage || 10}% incl.)</span><span>{currencySymbol}{tax.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-bold text-base pt-2 border-t"><span>Total</span><span className="text-primary">{currencySymbol}{total.toFixed(2)}</span></div>
                   </div>
                 )}
 
@@ -369,7 +374,7 @@ export default function Orders() {
         <div className="md:hidden fixed bottom-20 left-4 right-4 z-40">
           <Button className="w-full h-12 shadow-lg" onClick={() => setShowCart(true)}>
             <ShoppingCart className="h-4 w-4 mr-2" />
-            View Cart ({cartItemCount}) - ₹{total.toFixed(2)}
+            View Cart ({cartItemCount}) - {currencySymbol}{total.toFixed(2)}
           </Button>
         </div>
 
@@ -402,7 +407,7 @@ export default function Orders() {
                       <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm">{item.menuItemName}</p>
-                          <p className="text-xs text-muted-foreground">₹{item.menuItemPrice} × {item.quantity}</p>
+                          <p className="text-xs text-muted-foreground">{currencySymbol}{item.menuItemPrice} × {item.quantity}</p>
                         </div>
                         <div className="flex items-center gap-1">
                           <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQuantity(item.id, -1)}><Minus className="h-4 w-4" /></Button>
@@ -417,14 +422,14 @@ export default function Orders() {
 
                 {cart.length > 0 && (
                   <div className="space-y-2 pt-4 border-t">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Tax (5%)</span><span>₹{tax.toFixed(2)}</span></div>
-                    <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>Total</span><span className="text-primary">₹{total.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Subtotal (excl. tax)</span><span>{currencySymbol}{subtotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Tax ({settings?.taxPercentage || 10}% incl.)</span><span>{currencySymbol}{tax.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>Total</span><span className="text-primary">{currencySymbol}{total.toFixed(2)}</span></div>
                   </div>
                 )}
 
                 <Button className="w-full h-14 text-lg" size="lg" onClick={handlePlaceOrder} disabled={cart.length === 0}>
-                  Place Order - ₹{total.toFixed(2)}
+                  Place Order - {currencySymbol}{total.toFixed(2)}
                 </Button>
               </div>
             </div>

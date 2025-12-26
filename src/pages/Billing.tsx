@@ -310,17 +310,18 @@ export default function Billing() {
                   
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
-                      <span>Subtotal:</span>
+                      <span>Subtotal (excl. tax):</span>
                       <span>{currencySymbol}{selectedOrder.subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Tax ({settings?.taxPercentage || 5}%):</span>
+                      <span>Tax ({settings?.taxPercentage || 10}% incl.):</span>
                       <span>{currencySymbol}{selectedOrder.tax.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-base pt-2">
                       <span>TOTAL:</span>
                       <span>{currencySymbol}{selectedOrder.total.toFixed(2)}</span>
                     </div>
+                    <p className="text-[10px] text-muted-foreground text-center pt-1">Prices are inclusive of tax</p>
                   </div>
                   
                   {selectedOrder.paymentMethod && (
