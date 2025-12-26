@@ -138,6 +138,68 @@ export function useOrders() {
     }
   };
 
+  const addItemsToOrder = async (orderId: string, items: Array<{
+    menuItemId?: string;
+    menuItemName: string;
+    menuItemPrice: number;
+    quantity: number;
+    notes?: string;
+  }>) => {
+    try {
+      // First get the existing order
+      const existingOrder = orders.find(o => o.id === orderId);
+      if (!existingOrder) throw new Error('Order not found');
+
+      // Calculate new totals
+      const newItemsTotal = items.reduce((sum, item) => sum + (item.menuItemPrice * item.quantity), 0);
+      const newTotal = existingOrder.total + newItemsTotal;
+      // Assume tax is already included in prices
+      const taxRate = existingOrder.tax / existingOrder.subtotal;
+      const newSubtotal = newTotal / (1 + taxRate);
+      const newTax = newTotal - newSubtotal;
+
+      // Insert new items
+      const orderItems = items.map(item => ({
+        order_id: orderId,
+        menu_item_id: item.menuItemId || null,
+        menu_item_name: item.menuItemName,
+        menu_item_price: item.menuItemPrice,
+        quantity: item.quantity,
+        notes: item.notes || null,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+      
+      if (itemsError) throw itemsError;
+
+      // Update order totals and set back to pending if was ready
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          subtotal: newSubtotal,
+          tax: newTax,
+          total: newTotal,
+          status: 'pending' // Reset to pending so kitchen sees new items
+        })
+        .eq('id', orderId);
+      
+      if (updateError) throw updateError;
+
+      await fetchOrders();
+      return { error: null };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Failed to add items to order' };
+    }
+  };
+
+  const getActiveOrderForTable = useCallback((tableNum: number): DbOrder | null => {
+    return orders.find(
+      o => o.tableNumber === tableNum && !o.isPaid && o.status !== 'served' && o.status !== 'cancelled'
+    ) || null;
+  }, [orders]);
+
   const updateOrderStatus = async (orderId: string, status: DbOrder['status']) => {
     const { error } = await supabase
       .from('orders')
@@ -208,9 +270,11 @@ export function useOrders() {
     loading,
     error,
     addOrder,
+    addItemsToOrder,
     updateOrderStatus,
     processPayment,
     getTableStatus,
+    getActiveOrderForTable,
     refetch: fetchOrders,
   };
 }

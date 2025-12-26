@@ -21,9 +21,17 @@ interface POSContextType {
       notes?: string;
     }>;
   }) => Promise<{ error: string | null; orderId?: string }>;
+  addItemsToOrder: (orderId: string, items: Array<{
+    menuItemId?: string;
+    menuItemName: string;
+    menuItemPrice: number;
+    quantity: number;
+    notes?: string;
+  }>) => Promise<{ error: string | null }>;
   updateOrderStatus: (orderId: string, status: DbOrder['status']) => Promise<{ error: string | null }>;
   processPayment: (orderId: string, method: 'cash' | 'card' | 'upi') => Promise<{ error: string | null }>;
   getTableStatus: (tableNum: number) => 'free' | 'ordered' | 'preparing' | 'ready';
+  getActiveOrderForTable: (tableNum: number) => DbOrder | null;
   refetchOrders: () => Promise<void>;
 
   // Menu Items
@@ -63,9 +71,11 @@ export function POSProvider({ children }: { children: ReactNode }) {
     orders,
     loading: ordersLoading,
     addOrder,
+    addItemsToOrder,
     updateOrderStatus,
     processPayment,
     getTableStatus,
+    getActiveOrderForTable,
     refetch: refetchOrders,
   } = useOrders();
 
@@ -88,9 +98,11 @@ export function POSProvider({ children }: { children: ReactNode }) {
         orders,
         ordersLoading,
         addOrder,
+        addItemsToOrder,
         updateOrderStatus,
         processPayment,
         getTableStatus,
+        getActiveOrderForTable,
         refetchOrders,
 
         // Menu
