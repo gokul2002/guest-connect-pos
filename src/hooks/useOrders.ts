@@ -12,7 +12,8 @@ export interface DbOrderItem {
 
 export interface DbOrder {
   id: string;
-  tableNumber: number;
+  tableNumber: number | null;
+  orderSourceId: string | null;
   status: 'pending' | 'preparing' | 'ready' | 'served' | 'cancelled';
   customerName: string | null;
   subtotal: number;
@@ -65,6 +66,7 @@ export function useOrders() {
       setOrders((ordersData || []).map(order => ({
         id: order.id,
         tableNumber: order.table_number,
+        orderSourceId: order.order_source_id,
         status: order.status as DbOrder['status'],
         customerName: order.customer_name,
         subtotal: Number(order.subtotal),
@@ -85,7 +87,8 @@ export function useOrders() {
   }, []);
 
   const addOrder = async (orderData: {
-    tableNumber: number;
+    tableNumber?: number | null;
+    orderSourceId?: string | null;
     customerName?: string;
     subtotal: number;
     tax: number;
@@ -103,7 +106,8 @@ export function useOrders() {
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
-          table_number: orderData.tableNumber,
+          table_number: orderData.tableNumber ?? null,
+          order_source_id: orderData.orderSourceId ?? null,
           customer_name: orderData.customerName || null,
           subtotal: orderData.subtotal,
           tax: orderData.tax,
@@ -200,6 +204,12 @@ export function useOrders() {
     ) || null;
   }, [orders]);
 
+  const getActiveOrdersForSource = useCallback((sourceId: string): DbOrder[] => {
+    return orders.filter(
+      o => o.orderSourceId === sourceId && !o.isPaid && o.status !== 'served' && o.status !== 'cancelled'
+    );
+  }, [orders]);
+
   const updateOrderStatus = async (orderId: string, status: DbOrder['status']) => {
     const { error } = await supabase
       .from('orders')
@@ -275,6 +285,7 @@ export function useOrders() {
     processPayment,
     getTableStatus,
     getActiveOrderForTable,
+    getActiveOrdersForSource,
     refetch: fetchOrders,
   };
 }
