@@ -1,13 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Trash2, User, ChefHat, Shield, Search } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -20,10 +19,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { usePOS } from '@/contexts/POSContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/pos';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+
+interface StaffMember {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+}
 
 const roleIcons = {
   admin: Shield,
@@ -34,66 +40,80 @@ const roleIcons = {
 const roleColors = {
   admin: 'bg-destructive/10 text-destructive',
   staff: 'bg-primary/10 text-primary',
-  chef: 'bg-success/10 text-success',
+  chef: 'bg-green-500/10 text-green-600',
 };
 
 export default function Staff() {
-  const { users, addUser, removeUser } = usePOS();
+  const { signUp } = useAuth();
   const { toast } = useToast();
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterRole, setFilterRole] = useState<UserRole | 'all'>('all');
+  const [isAdding, setIsAdding] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
+    password: '',
     role: 'staff' as UserRole,
   });
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = filterRole === 'all' || user.role === filterRole;
-    return matchesSearch && matchesRole;
-  });
+  const fetchStaff = async () => {
+    const { data: profiles } = await supabase.from('profiles').select('*');
+    const { data: roles } = await supabase.from('user_roles').select('*');
+    
+    if (profiles && roles) {
+      const staffWithRoles = profiles.map(profile => {
+        const userRole = roles.find(r => r.user_id === profile.id);
+        return {
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          role: (userRole?.role as UserRole) || 'staff',
+        };
+      });
+      setStaffList(staffWithRoles);
+    }
+    setLoading(false);
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  const filteredStaff = staffList.filter(user =>
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email || !formData.role) {
-      toast({
-        title: 'Missing Information',
-        description: 'Please fill in all required fields.',
-        variant: 'destructive',
-      });
+    if (!formData.name || !formData.email || !formData.password) {
+      toast({ title: 'Missing Information', description: 'Please fill in all fields.', variant: 'destructive' });
       return;
     }
 
-    addUser(formData);
-    
-    toast({
-      title: 'Staff Added',
-      description: `${formData.name} has been added as ${formData.role}.`,
-    });
+    setIsAdding(true);
+    const { error } = await signUp(formData.email, formData.password, formData.name, formData.role);
+    setIsAdding(false);
 
-    setFormData({ name: '', email: '', phone: '', role: 'staff' });
-    setIsDialogOpen(false);
-  };
-
-  const handleRemove = (id: string, name: string) => {
-    removeUser(id);
-    toast({
-      title: 'Staff Removed',
-      description: `${name} has been removed.`,
-    });
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Staff Added', description: `${formData.name} has been added.` });
+      setFormData({ name: '', email: '', password: '', role: 'staff' });
+      setIsDialogOpen(false);
+      fetchStaff();
+    }
   };
 
   const stats = {
-    total: users.length,
-    admins: users.filter(u => u.role === 'admin').length,
-    staff: users.filter(u => u.role === 'staff').length,
-    chefs: users.filter(u => u.role === 'chef').length,
+    total: staffList.length,
+    admins: staffList.filter(u => u.role === 'admin').length,
+    staff: staffList.filter(u => u.role === 'staff').length,
+    chefs: staffList.filter(u => u.role === 'chef').length,
   };
 
   return (
@@ -121,6 +141,10 @@ export default function Staff() {
                   <Input type="email" placeholder="email@hotel.com" value={formData.email} onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))} required />
                 </div>
                 <div className="space-y-2">
+                  <Label>Password *</Label>
+                  <Input type="password" placeholder="Min 6 characters" value={formData.password} onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))} required />
+                </div>
+                <div className="space-y-2">
                   <Label>Role *</Label>
                   <Select value={formData.role} onValueChange={(value: UserRole) => setFormData(prev => ({ ...prev, role: value }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -133,7 +157,7 @@ export default function Staff() {
                 </div>
                 <div className="flex gap-2 pt-2">
                   <Button type="button" variant="outline" className="flex-1" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                  <Button type="submit" className="flex-1">Add</Button>
+                  <Button type="submit" className="flex-1" disabled={isAdding}>{isAdding ? 'Adding...' : 'Add'}</Button>
                 </div>
               </form>
             </DialogContent>
@@ -156,29 +180,31 @@ export default function Staff() {
 
         {/* Staff List */}
         <div className="space-y-2">
-          {filteredUsers.map((user) => {
-            const RoleIcon = roleIcons[user.role];
-            return (
-              <Card key={user.id}>
-                <CardContent className="p-3 md:p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">{user.name.charAt(0)}</div>
-                    <div>
-                      <p className="font-medium text-sm">{user.name}</p>
-                      <p className="text-xs text-muted-foreground">{user.email}</p>
+          {loading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading...</div>
+          ) : filteredStaff.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No staff found</p>
+          ) : (
+            filteredStaff.map((user) => {
+              const RoleIcon = roleIcons[user.role];
+              return (
+                <Card key={user.id}>
+                  <CardContent className="p-3 md:p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">{user.name.charAt(0)}</div>
+                      <div>
+                        <p className="font-medium text-sm">{user.name}</p>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${roleColors[user.role]}`}>
                       <RoleIcon className="h-3 w-3" />{user.role}
                     </span>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleRemove(user.id, user.name)}><Trash2 className="h-4 w-4" /></Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-          {filteredUsers.length === 0 && <p className="text-center text-muted-foreground py-8">No staff found</p>}
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
         </div>
       </div>
     </MainLayout>

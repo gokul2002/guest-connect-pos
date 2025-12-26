@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Menu, LogOut, Hotel, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { usePOS } from '@/contexts/POSContext';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Sheet,
   SheetContent,
@@ -9,12 +9,19 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 export function MobileHeader() {
-  const { currentUser, logout } = usePOS();
+  const { profile, role, signOut } = useAuth();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await signOut();
+    setOpen(false);
+    navigate('/login');
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-sidebar border-b border-sidebar-border md:hidden safe-area-top">
@@ -41,16 +48,16 @@ export function MobileHeader() {
               {/* User Info */}
               <div className="flex items-center gap-3 p-3 rounded-lg bg-sidebar-accent/50">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-medium">
-                  {currentUser?.name?.charAt(0) || 'U'}
+                  {profile?.name?.charAt(0) || 'U'}
                 </div>
                 <div>
-                  <p className="font-medium text-sidebar-foreground">{currentUser?.name}</p>
-                  <p className="text-xs text-sidebar-foreground/60 capitalize">{currentUser?.role}</p>
+                  <p className="font-medium text-sidebar-foreground">{profile?.name}</p>
+                  <p className="text-xs text-sidebar-foreground/60 capitalize">{role}</p>
                 </div>
               </div>
 
               {/* Admin-only link */}
-              {currentUser?.role === 'admin' && (
+              {role === 'admin' && (
                 <NavLink
                   to="/staff"
                   onClick={() => setOpen(false)}
@@ -72,10 +79,7 @@ export function MobileHeader() {
               <Button
                 variant="ghost"
                 className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent"
-                onClick={() => {
-                  logout();
-                  setOpen(false);
-                }}
+                onClick={handleLogout}
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout

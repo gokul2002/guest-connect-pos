@@ -51,3 +51,12 @@ export interface DashboardStats {
   pendingOrders: number;
   averageOrderValue: number;
 }
+
+export interface RestaurantSettings {
+  id: string;
+  restaurantName: string;
+  taxPercentage: number;
+  currencySymbol: string;
+  businessHoursOpen: string;
+  businessHoursClose: string;
+}

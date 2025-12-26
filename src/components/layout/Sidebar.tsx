@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -11,7 +11,7 @@ import {
   Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { usePOS } from '@/contexts/POSContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 
 const adminNavItems = [
@@ -36,10 +36,16 @@ const chefNavItems = [
 
 export function Sidebar() {
   const location = useLocation();
-  const { currentUser, logout } = usePOS();
+  const navigate = useNavigate();
+  const { profile, role, signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+  };
 
   const getNavItems = () => {
-    switch (currentUser?.role) {
+    switch (role) {
       case 'admin':
         return adminNavItems;
       case 'staff':
@@ -92,14 +98,14 @@ export function Sidebar() {
         <div className="border-t border-sidebar-border p-4">
           <div className="flex items-center gap-3 mb-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground font-medium">
-              {currentUser?.name?.charAt(0) || 'U'}
+              {profile?.name?.charAt(0) || 'U'}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {currentUser?.name}
+                {profile?.name}
               </p>
               <p className="text-xs text-sidebar-foreground/60 capitalize">
-                {currentUser?.role}
+                {role}
               </p>
             </div>
           </div>
@@ -107,7 +113,7 @@ export function Sidebar() {
             variant="ghost"
             size="sm"
             className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-            onClick={logout}
+            onClick={handleLogout}
           >
             <LogOut className="h-4 w-4 mr-2" />
             Logout
