@@ -5,7 +5,8 @@ import {
   ChefHat, 
   Users, 
   UtensilsCrossed,
-  Receipt
+  Receipt,
+  Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePOS } from '@/contexts/POSContext';
@@ -13,9 +14,8 @@ import { usePOS } from '@/contexts/POSContext';
 const adminNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
   { to: '/orders', icon: ShoppingCart, label: 'Orders' },
-  { to: '/kitchen', icon: ChefHat, label: 'Kitchen' },
-  { to: '/menu', icon: UtensilsCrossed, label: 'Menu' },
   { to: '/billing', icon: Receipt, label: 'Billing' },
+  { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 const staffNavItems = [
