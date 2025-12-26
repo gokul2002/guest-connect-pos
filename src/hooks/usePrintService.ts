@@ -3,6 +3,7 @@ import { useRestaurantSettings } from "./useRestaurantSettings";
 import { useToast } from "./use-toast";
 import { printBothReceipts, testPrint, OrderData, PrintSettings } from "@/lib/qzTray";
 import { useQzConnection } from "@/hooks/useQzConnection";
+import { retryQzConnection } from "@/lib/qzConnection";
 
 export function usePrintService() {
   const { settings } = useRestaurantSettings();
@@ -98,10 +99,21 @@ export function usePrintService() {
     [settings, toast, isConnected, qzConn.error]
   );
 
+  const reconnect = useCallback(async () => {
+    const success = await retryQzConnection();
+    if (success) {
+      toast({ title: "Connected", description: "QZ Tray connected successfully" });
+    } else {
+      toast({ title: "Connection Failed", description: "Make sure QZ Tray is running", variant: "destructive" });
+    }
+    return success;
+  }, [toast]);
+
   return {
     isConnected,
     status: qzConn.status,
     error: qzConn.error,
+    reconnect,
     printOrder,
     testPrintReceipt,
   };

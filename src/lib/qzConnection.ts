@@ -93,6 +93,11 @@ export async function initQzConnection(): Promise<void> {
   await connectQzIfNeeded();
 }
 
+export async function retryQzConnection(): Promise<boolean> {
+  // Allow manual retry even if previously initialized
+  return connectQzIfNeeded();
+}
+
 export function isQzConnected(): boolean {
   const qz = (window as any).qz;
   return qz?.websocket?.isActive?.() ?? false;
