@@ -23,14 +23,14 @@ import {
 } from "@/components/ui/select";
 
 export default function Settings() {
-  const { tableCount, setTableCount } = usePOS();
-  const { settings, loading, updateSettings } = useRestaurantSettings();
+  const { tableCount, updateSettings } = usePOS();
+  const { settings, loading } = useRestaurantSettings();
   const { orderSources, addOrderSource, updateOrderSource, deleteOrderSource, loading: orderSourcesLoading } = useOrderSources();
   const { user } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [localTableCount, setLocalTableCount] = useState(tableCount);
+  const [localTableCount, setLocalTableCount] = useState(10);
   const [restaurantName, setRestaurantName] = useState('');
   const [restaurantAddress, setRestaurantAddress] = useState('');
   const [restaurantLogoUrl, setRestaurantLogoUrl] = useState<string | null>(null);
@@ -65,6 +65,7 @@ export default function Settings() {
   // Initialize form values when settings load
   useEffect(() => {
     if (settings) {
+      setLocalTableCount(settings.tableCount ?? 10);
       setRestaurantName(settings.restaurantName);
       setRestaurantAddress(settings.restaurantAddress);
       setRestaurantLogoUrl(settings.restaurantLogoUrl);
@@ -111,12 +112,20 @@ export default function Settings() {
     }
   };
 
-  const handleSaveTableCount = () => {
-    setTableCount(localTableCount);
-    toast({
-      title: 'Settings saved',
-      description: `Table count updated to ${localTableCount}`,
-    });
+  const handleSaveTableCount = async () => {
+    const { error } = await updateSettings({ tableCount: localTableCount });
+    if (error) {
+      toast({
+        title: 'Error',
+        description: error,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Settings saved',
+        description: `Table count updated to ${localTableCount}`,
+      });
+    }
   };
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -268,7 +277,7 @@ export default function Settings() {
     }
   };
 
-  const hasTableChanges = localTableCount !== tableCount;
+  const hasTableChanges = localTableCount !== (settings?.tableCount ?? 10);
   const hasRestaurantChanges = settings && (
     restaurantName !== settings.restaurantName ||
     restaurantAddress !== settings.restaurantAddress ||

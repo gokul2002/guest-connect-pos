@@ -1,7 +1,9 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
 import { useOrders, DbOrder } from '@/hooks/useOrders';
 import { useMenuItems, DbMenuItem, MenuCategory } from '@/hooks/useMenuItems';
 import { useOrderSources, OrderSource } from '@/hooks/useOrderSources';
+import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
+import { RestaurantSettings } from '@/types/pos';
 
 interface POSContextType {
   // Orders
@@ -67,14 +69,20 @@ interface POSContextType {
   refetchMenu: () => Promise<void>;
 
   // Settings
+  settings: RestaurantSettings | null;
+  settingsLoading: boolean;
+  updateSettings: (newSettings: Partial<RestaurantSettings>) => Promise<{ error: string | null }>;
   tableCount: number;
-  setTableCount: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const POSContext = createContext<POSContextType | undefined>(undefined);
 
 export function POSProvider({ children }: { children: ReactNode }) {
-  const [tableCount, setTableCount] = useState<number>(10);
+  const {
+    settings,
+    loading: settingsLoading,
+    updateSettings,
+  } = useRestaurantSettings();
   
   const {
     orders,
@@ -139,8 +147,10 @@ export function POSProvider({ children }: { children: ReactNode }) {
         refetchMenu,
 
         // Settings
-        tableCount,
-        setTableCount,
+        settings,
+        settingsLoading,
+        updateSettings,
+        tableCount: settings?.tableCount ?? 10,
       }}
     >
       {children}
