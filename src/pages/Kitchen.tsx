@@ -99,111 +99,167 @@ export default function Kitchen() {
 
   return (
     <MainLayout>
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-4 md:space-y-6 animate-fade-in">
         <div>
-          <h1 className="font-display text-3xl font-bold">Kitchen Display</h1>
-          <p className="text-muted-foreground">Manage incoming orders and track preparation</p>
+          <h1 className="font-display text-2xl md:text-3xl font-bold">Kitchen Display</h1>
+          <p className="text-sm text-muted-foreground">Manage orders and track preparation</p>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-2 md:gap-4">
           <Card className="border-warning/50 bg-warning/5">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/20">
-                <Clock className="h-6 w-6 text-warning" />
+            <CardContent className="p-3 md:p-4 flex items-center gap-2 md:gap-4">
+              <div className="flex h-9 w-9 md:h-12 md:w-12 items-center justify-center rounded-lg md:rounded-xl bg-warning/20">
+                <Clock className="h-4 w-4 md:h-6 md:w-6 text-warning" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{pendingOrders.length}</p>
-                <p className="text-sm text-muted-foreground">Pending</p>
+                <p className="text-xl md:text-2xl font-bold">{pendingOrders.length}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Pending</p>
               </div>
             </CardContent>
           </Card>
           <Card className="border-primary/50 bg-primary/5">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/20">
-                <ChefHat className="h-6 w-6 text-primary" />
+            <CardContent className="p-3 md:p-4 flex items-center gap-2 md:gap-4">
+              <div className="flex h-9 w-9 md:h-12 md:w-12 items-center justify-center rounded-lg md:rounded-xl bg-primary/20">
+                <ChefHat className="h-4 w-4 md:h-6 md:w-6 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{preparingOrders.length}</p>
-                <p className="text-sm text-muted-foreground">Preparing</p>
+                <p className="text-xl md:text-2xl font-bold">{preparingOrders.length}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Preparing</p>
               </div>
             </CardContent>
           </Card>
           <Card className="border-success/50 bg-success/5">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/20">
-                <CheckCircle2 className="h-6 w-6 text-success" />
+            <CardContent className="p-3 md:p-4 flex items-center gap-2 md:gap-4">
+              <div className="flex h-9 w-9 md:h-12 md:w-12 items-center justify-center rounded-lg md:rounded-xl bg-success/20">
+                <CheckCircle2 className="h-4 w-4 md:h-6 md:w-6 text-success" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{readyOrders.length}</p>
-                <p className="text-sm text-muted-foreground">Ready</p>
+                <p className="text-xl md:text-2xl font-bold">{readyOrders.length}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Ready</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Orders Grid */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Pending */}
-          <div className="space-y-4">
-            <h2 className="font-display text-xl font-semibold flex items-center gap-2">
-              <Clock className="h-5 w-5 text-warning" />
-              Pending Orders
-            </h2>
-            <div className="space-y-4">
-              {pendingOrders.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="p-8 text-center text-muted-foreground">
-                    No pending orders
-                  </CardContent>
-                </Card>
-              ) : (
-                pendingOrders.map(order => (
-                  <OrderCard key={order.id} order={order} />
-                ))
-              )}
-            </div>
+        {/* Orders - Tabs on mobile, Grid on desktop */}
+        <div className="space-y-4">
+          {/* Mobile: Stacked sections */}
+          <div className="space-y-6 lg:hidden">
+            {pendingOrders.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="font-display text-lg font-semibold flex items-center gap-2 sticky top-0 bg-background py-2">
+                  <Clock className="h-4 w-4 text-warning" />
+                  Pending ({pendingOrders.length})
+                </h2>
+                <div className="space-y-3">
+                  {pendingOrders.map(order => (
+                    <OrderCard key={order.id} order={order} />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {preparingOrders.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="font-display text-lg font-semibold flex items-center gap-2 sticky top-0 bg-background py-2">
+                  <ChefHat className="h-4 w-4 text-primary" />
+                  Preparing ({preparingOrders.length})
+                </h2>
+                <div className="space-y-3">
+                  {preparingOrders.map(order => (
+                    <OrderCard key={order.id} order={order} />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {readyOrders.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="font-display text-lg font-semibold flex items-center gap-2 sticky top-0 bg-background py-2">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  Ready ({readyOrders.length})
+                </h2>
+                <div className="space-y-3">
+                  {readyOrders.map(order => (
+                    <OrderCard key={order.id} order={order} />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {pendingOrders.length === 0 && preparingOrders.length === 0 && readyOrders.length === 0 && (
+              <Card className="border-dashed">
+                <CardContent className="p-8 text-center text-muted-foreground">
+                  No active orders
+                </CardContent>
+              </Card>
+            )}
           </div>
 
-          {/* Preparing */}
-          <div className="space-y-4">
-            <h2 className="font-display text-xl font-semibold flex items-center gap-2">
-              <ChefHat className="h-5 w-5 text-primary" />
-              Preparing
-            </h2>
+          {/* Desktop: 3-column grid */}
+          <div className="hidden lg:grid gap-6 lg:grid-cols-3">
+            {/* Pending */}
             <div className="space-y-4">
-              {preparingOrders.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="p-8 text-center text-muted-foreground">
-                    No orders being prepared
-                  </CardContent>
-                </Card>
-              ) : (
-                preparingOrders.map(order => (
-                  <OrderCard key={order.id} order={order} />
-                ))
-              )}
+              <h2 className="font-display text-xl font-semibold flex items-center gap-2">
+                <Clock className="h-5 w-5 text-warning" />
+                Pending Orders
+              </h2>
+              <div className="space-y-4">
+                {pendingOrders.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="p-8 text-center text-muted-foreground">
+                      No pending orders
+                    </CardContent>
+                  </Card>
+                ) : (
+                  pendingOrders.map(order => (
+                    <OrderCard key={order.id} order={order} />
+                  ))
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Ready */}
-          <div className="space-y-4">
-            <h2 className="font-display text-xl font-semibold flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-success" />
-              Ready to Serve
-            </h2>
+            {/* Preparing */}
             <div className="space-y-4">
-              {readyOrders.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="p-8 text-center text-muted-foreground">
-                    No orders ready
-                  </CardContent>
-                </Card>
-              ) : (
-                readyOrders.map(order => (
-                  <OrderCard key={order.id} order={order} />
-                ))
-              )}
+              <h2 className="font-display text-xl font-semibold flex items-center gap-2">
+                <ChefHat className="h-5 w-5 text-primary" />
+                Preparing
+              </h2>
+              <div className="space-y-4">
+                {preparingOrders.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="p-8 text-center text-muted-foreground">
+                      No orders being prepared
+                    </CardContent>
+                  </Card>
+                ) : (
+                  preparingOrders.map(order => (
+                    <OrderCard key={order.id} order={order} />
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Ready */}
+            <div className="space-y-4">
+              <h2 className="font-display text-xl font-semibold flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-success" />
+                Ready to Serve
+              </h2>
+              <div className="space-y-4">
+                {readyOrders.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="p-8 text-center text-muted-foreground">
+                      No orders ready
+                    </CardContent>
+                  </Card>
+                ) : (
+                  readyOrders.map(order => (
+                    <OrderCard key={order.id} order={order} />
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>

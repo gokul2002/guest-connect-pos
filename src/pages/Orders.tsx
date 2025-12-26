@@ -100,24 +100,24 @@ export default function Orders() {
 
   return (
     <MainLayout>
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-4 md:space-y-6 animate-fade-in">
         <div>
-          <h1 className="font-display text-3xl font-bold">New Order</h1>
-          <p className="text-muted-foreground">Select items and create a new order</p>
+          <h1 className="font-display text-2xl md:text-3xl font-bold">New Order</h1>
+          <p className="text-sm text-muted-foreground">Select items to create order</p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
           {/* Menu Section */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="lg:col-span-2 space-y-3 md:space-y-4">
             {/* Categories */}
-            <div className="flex gap-2 overflow-x-auto pb-2">
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
               {categories.map(category => (
                 <Button
                   key={category}
                   variant={selectedCategory === category ? 'default' : 'secondary'}
                   size="sm"
                   onClick={() => setSelectedCategory(category)}
-                  className="whitespace-nowrap"
+                  className="whitespace-nowrap flex-shrink-0"
                 >
                   {category}
                 </Button>
@@ -125,24 +125,20 @@ export default function Orders() {
             </div>
 
             {/* Menu Grid */}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-2 md:gap-3 grid-cols-2 lg:grid-cols-3">
               {filteredItems.filter(item => item.available).map((item, index) => (
                 <Card 
                   key={item.id} 
-                  className="cursor-pointer hover:border-primary/50 transition-all duration-200 animate-slide-up"
-                  style={{ animationDelay: `${index * 30}ms` }}
+                  className="cursor-pointer hover:border-primary/50 transition-all duration-200 active:scale-[0.98]"
                   onClick={() => addToCart(item)}
                 >
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium truncate">{item.name}</h3>
-                        <p className="text-sm text-muted-foreground truncate">{item.description}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{item.category}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-primary">₹{item.price}</p>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 mt-1">
+                  <CardContent className="p-3 md:p-4">
+                    <div className="space-y-1">
+                      <h3 className="font-medium text-sm md:text-base line-clamp-1">{item.name}</h3>
+                      <p className="text-xs text-muted-foreground line-clamp-1 hidden md:block">{item.description}</p>
+                      <div className="flex items-center justify-between pt-1">
+                        <p className="font-bold text-primary text-sm md:text-base">₹{item.price}</p>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 md:h-8 md:w-8">
                           <Plus className="h-4 w-4" />
                         </Button>
                       </div>
@@ -153,68 +149,70 @@ export default function Orders() {
             </div>
           </div>
 
-          {/* Cart Section */}
+          {/* Cart Section - Fixed on mobile */}
           <div className="lg:col-span-1">
-            <Card className="sticky top-6">
-              <CardHeader className="pb-3">
-                <CardTitle className="font-display flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5" />
-                  Current Order
+            <Card className="lg:sticky lg:top-6">
+              <CardHeader className="pb-2 md:pb-3 p-3 md:p-6">
+                <CardTitle className="font-display flex items-center gap-2 text-base md:text-lg">
+                  <ShoppingCart className="h-4 w-4 md:h-5 md:w-5" />
+                  Cart ({cart.length})
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 md:space-y-4 p-3 md:p-6 pt-0 md:pt-0">
                 {/* Order Details */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2 md:gap-3">
                   <div>
-                    <Label htmlFor="table">Table No.</Label>
+                    <Label htmlFor="table" className="text-xs md:text-sm">Table No.</Label>
                     <Input
                       id="table"
                       type="number"
                       placeholder="1"
                       value={tableNumber}
                       onChange={(e) => setTableNumber(e.target.value)}
+                      className="h-9 md:h-10"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="customer">Customer</Label>
+                    <Label htmlFor="customer" className="text-xs md:text-sm">Customer</Label>
                     <Input
                       id="customer"
                       placeholder="Name"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
+                      className="h-9 md:h-10"
                     />
                   </div>
                 </div>
 
                 {/* Cart Items */}
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                <div className="space-y-2 max-h-[200px] md:max-h-[300px] overflow-y-auto">
                   {cart.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
+                    <p className="text-center text-muted-foreground py-6 md:py-8 text-sm">
                       No items in cart
                     </p>
                   ) : (
                     cart.map(item => (
-                      <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                      <div key={item.id} className="flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-lg bg-muted/50">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{item.menuItem.name}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-medium text-xs md:text-sm truncate">{item.menuItem.name}</p>
+                          <p className="text-xs text-muted-foreground">
                             ₹{item.menuItem.price} × {item.quantity}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-0.5 md:gap-1">
                           <Button 
                             size="icon" 
                             variant="ghost" 
-                            className="h-7 w-7"
+                            className="h-6 w-6 md:h-7 md:w-7"
                             onClick={() => updateQuantity(item.id, -1)}
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
-                          <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+                          <span className="w-5 md:w-6 text-center text-xs md:text-sm font-medium">{item.quantity}</span>
                           <Button 
                             size="icon" 
                             variant="ghost" 
-                            className="h-7 w-7"
+                            className="h-6 w-6 md:h-7 md:w-7"
                             onClick={() => updateQuantity(item.id, 1)}
                           >
                             <Plus className="h-3 w-3" />
@@ -222,7 +220,7 @@ export default function Orders() {
                           <Button 
                             size="icon" 
                             variant="ghost" 
-                            className="h-7 w-7 text-destructive"
+                            className="h-6 w-6 md:h-7 md:w-7 text-destructive"
                             onClick={() => removeFromCart(item.id)}
                           >
                             <Trash2 className="h-3 w-3" />
@@ -235,16 +233,16 @@ export default function Orders() {
 
                 {/* Totals */}
                 {cart.length > 0 && (
-                  <div className="space-y-2 pt-4 border-t">
-                    <div className="flex justify-between text-sm">
+                  <div className="space-y-1 md:space-y-2 pt-3 md:pt-4 border-t">
+                    <div className="flex justify-between text-xs md:text-sm">
                       <span className="text-muted-foreground">Subtotal</span>
                       <span>₹{subtotal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs md:text-sm">
                       <span className="text-muted-foreground">Tax (5%)</span>
                       <span>₹{tax.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between font-bold text-lg pt-2 border-t">
+                    <div className="flex justify-between font-bold text-base md:text-lg pt-2 border-t">
                       <span>Total</span>
                       <span className="text-primary">₹{total.toFixed(2)}</span>
                     </div>
@@ -252,7 +250,7 @@ export default function Orders() {
                 )}
 
                 <Button 
-                  className="w-full" 
+                  className="w-full h-10 md:h-11" 
                   size="lg"
                   onClick={handlePlaceOrder}
                   disabled={cart.length === 0}

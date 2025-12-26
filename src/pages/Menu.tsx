@@ -125,163 +125,89 @@ export default function Menu() {
 
   return (
     <MainLayout>
-      <div className="space-y-6 animate-fade-in">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 md:space-y-6 animate-fade-in">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="font-display text-3xl font-bold">Menu Management</h1>
-            <p className="text-muted-foreground">Manage your restaurant menu items</p>
+            <h1 className="font-display text-2xl md:text-3xl font-bold">Menu</h1>
+            <p className="text-sm text-muted-foreground">Manage menu items</p>
           </div>
           
           <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); else setIsDialogOpen(true); }}>
             <DialogTrigger asChild>
-              <Button>
+              <Button size="sm" className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Item
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-[90vw] sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="font-display">
-                  {editingItem ? 'Edit Menu Item' : 'Add New Menu Item'}
+                  {editingItem ? 'Edit Item' : 'Add Item'}
                 </DialogTitle>
-                <DialogDescription>
-                  {editingItem ? 'Update the item details' : 'Enter the details of the new menu item'}
-                </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-3">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Item Name *</Label>
-                  <Input
-                    id="name"
-                    placeholder="Enter item name"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    required
-                  />
+                  <Label htmlFor="name">Name *</Label>
+                  <Input id="name" placeholder="Item name" value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} required />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="price">Price (₹) *</Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      placeholder="0.00"
-                      value={formData.price}
-                      onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                      required
-                    />
+                    <Input id="price" type="number" placeholder="0" value={formData.price} onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))} required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="category">Category *</Label>
-                    <Select
-                      value={formData.category}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
+                    <Label>Category *</Label>
+                    <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {categories.slice(1).map(cat => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
+                        {categories.slice(1).map(cat => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Input
-                    id="description"
-                    placeholder="Brief description"
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  />
-                </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="available">Available</Label>
-                  <Switch
-                    id="available"
-                    checked={formData.available}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, available: checked }))}
-                  />
+                  <Label>Available</Label>
+                  <Switch checked={formData.available} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, available: checked }))} />
                 </div>
-                <div className="flex gap-2 pt-4">
-                  <Button type="button" variant="outline" className="flex-1" onClick={resetForm}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="flex-1">
-                    {editingItem ? 'Update Item' : 'Add Item'}
-                  </Button>
+                <div className="flex gap-2 pt-2">
+                  <Button type="button" variant="outline" className="flex-1" onClick={resetForm}>Cancel</Button>
+                  <Button type="submit" className="flex-1">{editingItem ? 'Update' : 'Add'}</Button>
                 </div>
               </form>
             </DialogContent>
           </Dialog>
         </div>
 
-        {/* Category Stats */}
-        <div className="grid grid-cols-6 gap-3">
-          {categoryStats.map((cat, index) => (
-            <Card 
-              key={cat.name} 
-              className={`cursor-pointer transition-all ${filterCategory === cat.name ? 'border-primary' : ''}`}
-              onClick={() => setFilterCategory(filterCategory === cat.name ? 'All' : cat.name)}
-            >
-              <CardContent className="p-4 text-center">
-                <p className="text-xl font-bold">{cat.count}</p>
-                <p className="text-xs text-muted-foreground">{cat.name}</p>
-              </CardContent>
-            </Card>
+        {/* Category filters - horizontal scroll on mobile */}
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
+          {categories.map(cat => (
+            <Button key={cat} variant={filterCategory === cat ? 'default' : 'secondary'} size="sm" onClick={() => setFilterCategory(cat)} className="whitespace-nowrap flex-shrink-0">
+              {cat}
+            </Button>
           ))}
         </div>
 
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search menu items..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <Input placeholder="Search..." className="pl-10 h-10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
         </div>
 
-        {/* Menu Items Grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredItems.map((item, index) => (
-            <Card 
-              key={item.id} 
-              className={`animate-slide-up ${!item.available ? 'opacity-60' : ''}`}
-              style={{ animationDelay: `${index * 30}ms` }}
-            >
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex-1">
-                    <h3 className="font-medium">{item.name}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-1">{item.description}</p>
-                  </div>
-                  <span className="text-lg font-bold text-primary">₹{item.price}</span>
+        {/* Menu Grid */}
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredItems.map((item) => (
+            <Card key={item.id} className={`${!item.available ? 'opacity-60' : ''}`}>
+              <CardContent className="p-3">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-medium text-sm line-clamp-1">{item.name}</h3>
+                  <span className="text-sm font-bold text-primary">₹{item.price}</span>
                 </div>
-                
                 <div className="flex items-center justify-between">
-                  <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                    {item.category}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={item.available}
-                      onCheckedChange={() => toggleAvailability(item.id)}
-                    />
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(item)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => handleDelete(item.id, item.name)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{item.category}</span>
+                  <div className="flex items-center gap-1">
+                    <Switch checked={item.available} onCheckedChange={() => toggleAvailability(item.id)} />
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(item)}><Pencil className="h-3 w-3" /></Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(item.id, item.name)}><Trash2 className="h-3 w-3" /></Button>
                   </div>
                 </div>
               </CardContent>
@@ -290,11 +216,7 @@ export default function Menu() {
         </div>
 
         {filteredItems.length === 0 && (
-          <Card className="border-dashed">
-            <CardContent className="p-8 text-center text-muted-foreground">
-              No menu items found
-            </CardContent>
-          </Card>
+          <Card className="border-dashed"><CardContent className="p-8 text-center text-muted-foreground">No items found</CardContent></Card>
         )}
       </div>
     </MainLayout>

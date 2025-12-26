@@ -73,36 +73,36 @@ export default function Dashboard() {
 
   return (
     <MainLayout>
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-4 md:space-y-6 animate-fade-in">
         {/* Header */}
         <div>
-          <h1 className="font-display text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's what's happening today.</p>
+          <h1 className="font-display text-2xl md:text-3xl font-bold">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Welcome back! Here's what's happening.</p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, index) => (
             <Card key={stat.title} className="animate-slide-up" style={{ animationDelay: `${index * 50}ms` }}>
-              <CardContent className="p-6">
+              <CardContent className="p-3 md:p-6">
                 <div className="flex items-center justify-between">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                    <stat.icon className="h-6 w-6 text-primary" />
+                  <div className="flex h-9 w-9 md:h-12 md:w-12 items-center justify-center rounded-lg md:rounded-xl bg-primary/10">
+                    <stat.icon className="h-4 w-4 md:h-6 md:w-6 text-primary" />
                   </div>
-                  <div className={`flex items-center gap-1 text-sm font-medium ${
+                  <div className={`flex items-center gap-0.5 text-xs md:text-sm font-medium ${
                     stat.changeType === 'positive' ? 'text-success' : 'text-destructive'
                   }`}>
                     {stat.changeType === 'positive' ? (
-                      <ArrowUpRight className="h-4 w-4" />
+                      <ArrowUpRight className="h-3 w-3 md:h-4 md:w-4" />
                     ) : (
-                      <ArrowDownRight className="h-4 w-4" />
+                      <ArrowDownRight className="h-3 w-3 md:h-4 md:w-4" />
                     )}
-                    {stat.change}
+                    <span className="hidden md:inline">{stat.change}</span>
                   </div>
                 </div>
-                <div className="mt-4">
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                  <p className="text-sm text-muted-foreground">{stat.title}</p>
+                <div className="mt-2 md:mt-4">
+                  <p className="text-lg md:text-2xl font-bold">{stat.value}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">{stat.title}</p>
                 </div>
               </CardContent>
             </Card>
@@ -110,13 +110,13 @@ export default function Dashboard() {
         </div>
 
         {/* Charts */}
-        <div className="grid gap-6 lg:grid-cols-7">
+        <div className="grid gap-4 md:gap-6 lg:grid-cols-7">
           <Card className="lg:col-span-4">
-            <CardHeader>
-              <CardTitle className="font-display">Sales Overview</CardTitle>
+            <CardHeader className="p-3 md:p-6 pb-0 md:pb-0">
+              <CardTitle className="font-display text-base md:text-lg">Sales Overview</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
+            <CardContent className="p-3 md:p-6 pt-4">
+              <div className="h-[200px] md:h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
@@ -126,13 +126,14 @@ export default function Dashboard() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={10} tick={{ fontSize: 10 }} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tick={{ fontSize: 10 }} width={40} />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--card))', 
                         border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
+                        borderRadius: '8px',
+                        fontSize: '12px'
                       }}
                       formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Sales']}
                     />
@@ -151,21 +152,22 @@ export default function Dashboard() {
           </Card>
 
           <Card className="lg:col-span-3">
-            <CardHeader>
-              <CardTitle className="font-display">Orders by Category</CardTitle>
+            <CardHeader className="p-3 md:p-6 pb-0 md:pb-0">
+              <CardTitle className="font-display text-base md:text-lg">Orders by Category</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
+            <CardContent className="p-3 md:p-6 pt-4">
+              <div className="h-[200px] md:h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={categoryData} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} width={80} />
+                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tick={{ fontSize: 10 }} />
+                    <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" fontSize={10} width={70} tick={{ fontSize: 10 }} />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--card))', 
                         border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
+                        borderRadius: '8px',
+                        fontSize: '12px'
                       }}
                     />
                     <Bar dataKey="orders" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
@@ -178,30 +180,30 @@ export default function Dashboard() {
 
         {/* Recent Orders */}
         <Card>
-          <CardHeader>
-            <CardTitle className="font-display">Recent Orders</CardTitle>
+          <CardHeader className="p-3 md:p-6 pb-2 md:pb-4">
+            <CardTitle className="font-display text-base md:text-lg">Recent Orders</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+          <CardContent className="p-3 md:p-6 pt-0">
+            <div className="space-y-2 md:space-y-4">
               {recentOrders.map((order) => (
                 <div 
                   key={order.id} 
-                  className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                  className="flex items-center justify-between p-3 md:p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary font-semibold">
+                  <div className="flex items-center gap-2 md:gap-4">
+                    <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-lg bg-primary/10 text-primary font-semibold text-xs md:text-sm">
                       T{order.tableNumber}
                     </div>
                     <div>
-                      <p className="font-medium">{order.id}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {order.items.length} items • {order.customerName || 'Walk-in'}
+                      <p className="font-medium text-xs md:text-sm">{order.id}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {order.items.length} items
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold">₹{order.total}</p>
-                    <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                    <p className="font-semibold text-sm md:text-base">₹{order.total}</p>
+                    <span className={`inline-flex items-center rounded-full px-1.5 md:px-2 py-0.5 md:py-1 text-[10px] md:text-xs font-medium ${
                       order.status === 'pending' ? 'bg-warning/10 text-warning' :
                       order.status === 'preparing' ? 'bg-primary/10 text-primary' :
                       order.status === 'ready' ? 'bg-success/10 text-success' :
