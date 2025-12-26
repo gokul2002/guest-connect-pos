@@ -29,7 +29,8 @@ export default function Settings() {
   const { orderSources, addOrderSource, updateOrderSource, deleteOrderSource, loading: orderSourcesLoading } = useOrderSources();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { isConnected, status, error, testPrintReceipt } = usePrintService();
+  const { isConnected, status, error, testPrintReceipt, reconnect } = usePrintService();
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [localTableCount, setLocalTableCount] = useState(10);
@@ -746,10 +747,24 @@ export default function Settings() {
                   <p className="text-xs text-muted-foreground">
                     {isConnected
                       ? "Ready to print receipts"
-                      : error || (status === "connecting" ? "Connecting…" : "Install QZ Tray from qz.io and ensure it is running, then refresh the app")}
+                      : error || (status === "connecting" ? "Connecting…" : "Install QZ Tray from qz.io and ensure it is running")}
                   </p>
                 </div>
               </div>
+              {!isConnected && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    setIsReconnecting(true);
+                    await reconnect();
+                    setIsReconnecting(false);
+                  }}
+                  disabled={isReconnecting || status === "connecting"}
+                >
+                  {isReconnecting || status === "connecting" ? "Connecting..." : "Reconnect"}
+                </Button>
+              )}
             </div>
 
             <Separator />
