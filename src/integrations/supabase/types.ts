@@ -254,10 +254,12 @@ export type Database = {
         Row: {
           business_hours_close: string
           business_hours_open: string
+          cash_printer_name: string | null
           created_at: string
           currency_symbol: string
           id: string
           kitchen_enabled: boolean
+          kitchen_printer_name: string | null
           restaurant_address: string | null
           restaurant_logo_url: string | null
           restaurant_name: string
@@ -268,10 +270,12 @@ export type Database = {
         Insert: {
           business_hours_close?: string
           business_hours_open?: string
+          cash_printer_name?: string | null
           created_at?: string
           currency_symbol?: string
           id?: string
           kitchen_enabled?: boolean
+          kitchen_printer_name?: string | null
           restaurant_address?: string | null
           restaurant_logo_url?: string | null
           restaurant_name?: string
@@ -282,10 +286,12 @@ export type Database = {
         Update: {
           business_hours_close?: string
           business_hours_open?: string
+          cash_printer_name?: string | null
           created_at?: string
           currency_symbol?: string
           id?: string
           kitchen_enabled?: boolean
+          kitchen_printer_name?: string | null
           restaurant_address?: string | null
           restaurant_logo_url?: string | null
           restaurant_name?: string

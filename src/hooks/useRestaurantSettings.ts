@@ -29,6 +29,8 @@ export function useRestaurantSettings() {
           businessHoursClose: data.business_hours_close,
           kitchenEnabled: data.kitchen_enabled,
           tableCount: data.table_count ?? 10,
+          kitchenPrinterName: data.kitchen_printer_name ?? 'Kitchen Printer',
+          cashPrinterName: data.cash_printer_name ?? 'Cash Printer',
         });
       }
     } catch (err) {
@@ -52,6 +54,8 @@ export function useRestaurantSettings() {
       if (newSettings.businessHoursClose !== undefined) updateData.business_hours_close = newSettings.businessHoursClose;
       if (newSettings.kitchenEnabled !== undefined) updateData.kitchen_enabled = newSettings.kitchenEnabled;
       if (newSettings.tableCount !== undefined) updateData.table_count = newSettings.tableCount;
+      if (newSettings.kitchenPrinterName !== undefined) updateData.kitchen_printer_name = newSettings.kitchenPrinterName;
+      if (newSettings.cashPrinterName !== undefined) updateData.cash_printer_name = newSettings.cashPrinterName;
 
       const { error: updateError } = await supabase
         .from('restaurant_settings')
