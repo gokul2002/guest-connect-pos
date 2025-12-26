@@ -15,6 +15,7 @@ import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
 import { DbOrder } from '@/hooks/useOrders';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Billing() {
   const { orders, ordersLoading, processPayment } = usePOS();
@@ -48,9 +49,9 @@ export default function Billing() {
     setShowReceipt(true);
   };
 
-  const printReceipt = () => {
+  const printReceipt = async () => {
     const printContent = receiptRef.current;
-    if (printContent) {
+    if (printContent && selectedOrder) {
       const printWindow = window.open('', '', 'width=300,height=600');
       if (printWindow) {
         printWindow.document.write(`
@@ -77,6 +78,18 @@ export default function Billing() {
         printWindow.document.close();
         printWindow.print();
         printWindow.close();
+      }
+      
+      // Mark order as served to free the table
+      if (selectedOrder.isPaid) {
+        const { error } = await supabase
+          .from('orders')
+          .update({ status: 'served' })
+          .eq('id', selectedOrder.id);
+        
+        if (!error) {
+          toast({ title: 'Table Freed', description: `Table ${selectedOrder.tableNumber} is now available.` });
+        }
       }
     }
     setShowReceipt(false);

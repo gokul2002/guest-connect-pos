@@ -8,7 +8,8 @@ import {
   Receipt,
   LogOut,
   Hotel,
-  Settings
+  Settings,
+  ClipboardList
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,6 +20,7 @@ const adminNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/orders', icon: ShoppingCart, label: 'Orders' },
   { to: '/kitchen', icon: ChefHat, label: 'Kitchen' },
+  { to: '/order-history', icon: ClipboardList, label: 'Order History' },
   { to: '/menu', icon: UtensilsCrossed, label: 'Menu' },
   { to: '/staff', icon: Users, label: 'Staff' },
   { to: '/billing', icon: Receipt, label: 'Billing' },
@@ -28,6 +30,7 @@ const adminNavItems = [
 const staffNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/orders', icon: ShoppingCart, label: 'Orders' },
+  { to: '/order-history', icon: ClipboardList, label: 'Order History' },
   { to: '/billing', icon: Receipt, label: 'Billing' },
 ];
 

@@ -6,7 +6,8 @@ import {
   Users, 
   UtensilsCrossed,
   Receipt,
-  Settings
+  Settings,
+  ClipboardList
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,13 +15,14 @@ import { useAuth } from '@/contexts/AuthContext';
 const adminNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
   { to: '/orders', icon: ShoppingCart, label: 'Orders' },
+  { to: '/order-history', icon: ClipboardList, label: 'History' },
   { to: '/billing', icon: Receipt, label: 'Billing' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 const staffNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
   { to: '/orders', icon: ShoppingCart, label: 'Orders' },
+  { to: '/order-history', icon: ClipboardList, label: 'History' },
   { to: '/billing', icon: Receipt, label: 'Billing' },
 ];
 
