@@ -48,6 +48,8 @@ export type Database = {
           created_at: string
           currency_symbol: string
           id: string
+          restaurant_address: string | null
+          restaurant_logo_url: string | null
           restaurant_name: string
           tax_percentage: number
           updated_at: string
@@ -58,6 +60,8 @@ export type Database = {
           created_at?: string
           currency_symbol?: string
           id?: string
+          restaurant_address?: string | null
+          restaurant_logo_url?: string | null
           restaurant_name?: string
           tax_percentage?: number
           updated_at?: string
@@ -68,6 +72,8 @@ export type Database = {
           created_at?: string
           currency_symbol?: string
           id?: string
+          restaurant_address?: string | null
+          restaurant_logo_url?: string | null
           restaurant_name?: string
           tax_percentage?: number
           updated_at?: string

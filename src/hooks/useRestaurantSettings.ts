@@ -21,6 +21,8 @@ export function useRestaurantSettings() {
         setSettings({
           id: data.id,
           restaurantName: data.restaurant_name,
+          restaurantAddress: data.restaurant_address || '',
+          restaurantLogoUrl: data.restaurant_logo_url,
           taxPercentage: Number(data.tax_percentage),
           currencySymbol: data.currency_symbol,
           businessHoursOpen: data.business_hours_open,
@@ -38,15 +40,18 @@ export function useRestaurantSettings() {
     if (!settings?.id) return { error: 'No settings found' };
 
     try {
+      const updateData: Record<string, unknown> = {};
+      if (newSettings.restaurantName !== undefined) updateData.restaurant_name = newSettings.restaurantName;
+      if (newSettings.restaurantAddress !== undefined) updateData.restaurant_address = newSettings.restaurantAddress;
+      if (newSettings.restaurantLogoUrl !== undefined) updateData.restaurant_logo_url = newSettings.restaurantLogoUrl;
+      if (newSettings.taxPercentage !== undefined) updateData.tax_percentage = newSettings.taxPercentage;
+      if (newSettings.currencySymbol !== undefined) updateData.currency_symbol = newSettings.currencySymbol;
+      if (newSettings.businessHoursOpen !== undefined) updateData.business_hours_open = newSettings.businessHoursOpen;
+      if (newSettings.businessHoursClose !== undefined) updateData.business_hours_close = newSettings.businessHoursClose;
+
       const { error: updateError } = await supabase
         .from('restaurant_settings')
-        .update({
-          restaurant_name: newSettings.restaurantName,
-          tax_percentage: newSettings.taxPercentage,
-          currency_symbol: newSettings.currencySymbol,
-          business_hours_open: newSettings.businessHoursOpen,
-          business_hours_close: newSettings.businessHoursClose,
-        })
+        .update(updateData)
         .eq('id', settings.id);
 
       if (updateError) throw updateError;
