@@ -1,14 +1,16 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePOS } from '@/contexts/POSContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
-  const { currentUser } = usePOS();
+  const { user, role, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (currentUser) {
-      if (currentUser.role === 'chef') {
+    if (loading) return;
+    
+    if (user && role) {
+      if (role === 'chef') {
         navigate('/kitchen');
       } else {
         navigate('/dashboard');
@@ -16,9 +18,13 @@ const Index = () => {
     } else {
       navigate('/login');
     }
-  }, [currentUser, navigate]);
+  }, [user, role, loading, navigate]);
 
-  return null;
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>
+  );
 };
 
 export default Index;

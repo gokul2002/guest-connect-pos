@@ -9,7 +9,7 @@ import {
   Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { usePOS } from '@/contexts/POSContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 const adminNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
@@ -29,10 +29,10 @@ const chefNavItems = [
 ];
 
 export function BottomNav() {
-  const { currentUser } = usePOS();
+  const { role } = useAuth();
 
   const getNavItems = () => {
-    switch (currentUser?.role) {
+    switch (role) {
       case 'admin':
         return adminNavItems;
       case 'staff':

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { usePOS } from '@/contexts/POSContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { categories } from '@/data/mockData';
 import { OrderItem, MenuItem } from '@/types/pos';
 import { useToast } from '@/hooks/use-toast';
@@ -27,7 +28,8 @@ const tableStatusConfig: Record<TableStatus, { label: string; color: string; bgC
 };
 
 export default function Orders() {
-  const { menuItems, addOrder, currentUser, tableCount, getTableStatus } = usePOS();
+  const { menuItems, addOrder, tableCount, getTableStatus } = usePOS();
+  const { user } = useAuth();
   const { toast } = useToast();
   
   // Step: 'table' or 'menu'
@@ -135,7 +137,7 @@ export default function Orders() {
       items: cart,
       tableNumber: selectedTable,
       status: 'pending',
-      createdBy: currentUser?.id || '',
+      createdBy: user?.id || '',
       customerName: customerName || undefined,
       subtotal,
       tax,

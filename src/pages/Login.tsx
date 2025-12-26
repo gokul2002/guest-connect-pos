@@ -1,63 +1,126 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Hotel, User, ChefHat, Shield } from 'lucide-react';
+import { Hotel, User, ChefHat, Shield, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { usePOS } from '@/contexts/POSContext';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/pos';
 import { useToast } from '@/hooks/use-toast';
+import { z } from 'zod';
 
 const roleOptions: { role: UserRole; icon: typeof User; label: string; description: string }[] = [
-  { role: 'admin', icon: Shield, label: 'Admin', description: 'Full access to all features' },
-  { role: 'staff', icon: User, label: 'Staff', description: 'Orders and billing' },
+  { role: 'admin', icon: Shield, label: 'Admin', description: 'Full access' },
+  { role: 'staff', icon: User, label: 'Staff', description: 'Orders & billing' },
   { role: 'chef', icon: ChefHat, label: 'Chef', description: 'Kitchen display' },
 ];
 
+const loginSchema = z.object({
+  email: z.string().trim().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+const signupSchema = loginSchema.extend({
+  name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long'),
+});
+
 export default function Login() {
   const [email, setEmail] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
-  const { login } = usePOS();
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('staff');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  const { signIn, signUp, user, role } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (login(email, selectedRole)) {
-      toast({
-        title: 'Welcome!',
-        description: 'You have successfully logged in.',
-      });
-      
-      switch (selectedRole) {
-        case 'admin':
-        case 'staff':
-          navigate('/dashboard');
-          break;
-        case 'chef':
-          navigate('/kitchen');
-          break;
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user && role) {
+      if (role === 'chef') {
+        navigate('/kitchen');
+      } else {
+        navigate('/dashboard');
       }
-    } else {
+    }
+  }, [user, role, navigate]);
+
+  const validateForm = (isSignup: boolean) => {
+    const schema = isSignup ? signupSchema : loginSchema;
+    const data = isSignup ? { email, password, name } : { email, password };
+    
+    const result = schema.safeParse(data);
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          fieldErrors[err.path[0] as string] = err.message;
+        }
+      });
+      setErrors(fieldErrors);
+      return false;
+    }
+    setErrors({});
+    return true;
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm(false)) return;
+    
+    setIsLoading(true);
+    const { error } = await signIn(email, password);
+    setIsLoading(false);
+    
+    if (error) {
       toast({
         title: 'Login Failed',
-        description: 'Invalid credentials. Please try again.',
+        description: error.message === 'Invalid login credentials' 
+          ? 'Invalid email or password. Please try again.'
+          : error.message,
         variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Welcome back!',
+        description: 'You have successfully logged in.',
       });
     }
   };
 
-  const handleQuickLogin = (role: UserRole) => {
-    const emails: Record<UserRole, string> = {
-      admin: 'admin@hotel.com',
-      staff: 'john@hotel.com',
-      chef: 'ramesh@hotel.com',
-    };
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm(true)) return;
     
-    setEmail(emails[role]);
-    setSelectedRole(role);
+    setIsLoading(true);
+    const { error } = await signUp(email, password, name, selectedRole);
+    setIsLoading(false);
+    
+    if (error) {
+      if (error.message.includes('already registered')) {
+        toast({
+          title: 'Account Exists',
+          description: 'This email is already registered. Please sign in instead.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Signup Failed',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
+    } else {
+      toast({
+        title: 'Account Created!',
+        description: 'You can now sign in with your credentials.',
+      });
+    }
   };
 
   return (
@@ -75,58 +138,142 @@ export default function Login() {
             </div>
           </div>
           <CardTitle className="font-display text-xl md:text-2xl">HotelPOS</CardTitle>
-          <CardDescription className="text-sm">Sign in to access the system</CardDescription>
+          <CardDescription className="text-sm">Sign in or create an account</CardDescription>
         </CardHeader>
         
-        <CardContent className="space-y-4 md:space-y-6 px-4 md:px-6">
-          {/* Role Selection */}
-          <div className="space-y-2 md:space-y-3">
-            <Label className="text-sm">Select Role</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {roleOptions.map((option) => (
-                <Button
-                  key={option.role}
-                  type="button"
-                  variant={selectedRole === option.role ? 'pos-active' : 'pos'}
-                  onClick={() => handleQuickLogin(option.role)}
-                  className="h-auto py-2.5 md:py-3"
-                >
-                  <option.icon className="h-4 w-4 md:h-5 md:w-5" />
-                  <span className="text-xs font-medium">{option.label}</span>
+        <CardContent className="px-4 md:px-6">
+          <Tabs defaultValue="login" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="login">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="login">
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="login-email">Email</Label>
+                  <Input
+                    id="login-email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="h-11"
+                  />
+                  {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="login-password">Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="login-password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="h-11 pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-11 w-11"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+                </div>
+
+                <Button type="submit" className="w-full h-11" size="lg" disabled={isLoading}>
+                  {isLoading ? 'Signing in...' : 'Sign In'}
                 </Button>
-              ))}
-            </div>
-          </div>
+              </form>
+            </TabsContent>
+            
+            <TabsContent value="signup">
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-name">Full Name</Label>
+                  <Input
+                    id="signup-name"
+                    type="text"
+                    placeholder="Enter your name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    className="h-11"
+                  />
+                  {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Email</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="h-11"
+                  />
+                  {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                </div>
 
-          <form onSubmit={handleLogin} className="space-y-3 md:space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-10 md:h-11"
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="signup-password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Create a password (min 6 chars)"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="h-11 pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-11 w-11"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+                </div>
 
-            <Button type="submit" className="w-full h-10 md:h-11" size="lg">
-              Sign In
-            </Button>
-          </form>
+                <div className="space-y-2">
+                  <Label>Select Role</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {roleOptions.map((option) => (
+                      <Button
+                        key={option.role}
+                        type="button"
+                        variant={selectedRole === option.role ? 'default' : 'outline'}
+                        onClick={() => setSelectedRole(option.role)}
+                        className="h-auto py-3 flex-col gap-1"
+                      >
+                        <option.icon className="h-4 w-4" />
+                        <span className="text-xs">{option.label}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
 
-          <div className="text-center text-xs md:text-sm text-muted-foreground">
-            <p>Quick login emails:</p>
-            <div className="flex flex-wrap justify-center gap-1 mt-1">
-              <span className="text-primary text-xs">admin@hotel.com</span>
-              <span>•</span>
-              <span className="text-primary text-xs">john@hotel.com</span>
-              <span>•</span>
-              <span className="text-primary text-xs">ramesh@hotel.com</span>
-            </div>
-          </div>
+                <Button type="submit" className="w-full h-11" size="lg" disabled={isLoading}>
+                  {isLoading ? 'Creating account...' : 'Create Account'}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>
