@@ -7,8 +7,6 @@ import { Label } from '@/components/ui/label';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { categories } from '@/data/mockData';
-import { OrderItem, MenuItem } from '@/types/pos';
 import { useToast } from '@/hooks/use-toast';
 import {
   Select,
@@ -20,6 +18,15 @@ import {
 
 type TableStatus = 'free' | 'ordered' | 'preparing' | 'ready';
 
+interface CartItem {
+  id: string;
+  menuItemId: string;
+  menuItemName: string;
+  menuItemPrice: number;
+  quantity: number;
+  notes?: string;
+}
+
 const tableStatusConfig: Record<TableStatus, { label: string; color: string; bgColor: string; icon: React.ElementType }> = {
   free: { label: 'Available', color: 'text-green-600', bgColor: 'border-green-500 bg-green-500/10 hover:bg-green-500/20', icon: Users },
   ordered: { label: 'Ordered', color: 'text-orange-600', bgColor: 'border-orange-500 bg-orange-500/20 hover:bg-orange-500/30', icon: UtensilsCrossed },
@@ -28,30 +35,26 @@ const tableStatusConfig: Record<TableStatus, { label: string; color: string; bgC
 };
 
 export default function Orders() {
-  const { menuItems, addOrder, tableCount, getTableStatus } = usePOS();
+  const { menuItems, categories, menuLoading, addOrder, tableCount, getTableStatus } = usePOS();
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // Step: 'table' or 'menu'
   const [step, setStep] = useState<'table' | 'menu'>('table');
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [cart, setCart] = useState<OrderItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'popular' | 'name' | 'price-low' | 'price-high'>('popular');
+  const [sortBy, setSortBy] = useState<'popular' | 'name' | 'price-low' | 'price-high'>('name');
   const [showCart, setShowCart] = useState(false);
 
-  // Mock popularity data
-  const popularityMap: Record<string, number> = {
-    '1': 150, '2': 120, '3': 80, '5': 200, '6': 90, '9': 180, '11': 140, '13': 110,
-  };
+  const categoryNames = ['All', ...categories.map(c => c.name)];
 
   const filteredAndSortedItems = useMemo(() => {
     let items = menuItems.filter(item => item.available);
     if (selectedCategory !== 'All') {
-      items = items.filter(item => item.category === selectedCategory);
+      items = items.filter(item => item.categoryName === selectedCategory);
     }
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -61,9 +64,6 @@ export default function Orders() {
       );
     }
     switch (sortBy) {
-      case 'popular':
-        items = [...items].sort((a, b) => (popularityMap[b.id] || 0) - (popularityMap[a.id] || 0));
-        break;
       case 'name':
         items = [...items].sort((a, b) => a.name.localeCompare(b.name));
         break;
@@ -77,15 +77,21 @@ export default function Orders() {
     return items;
   }, [menuItems, selectedCategory, searchQuery, sortBy]);
 
-  const addToCart = (item: MenuItem) => {
+  const addToCart = (item: typeof menuItems[0]) => {
     setCart(prev => {
-      const existing = prev.find(i => i.menuItem.id === item.id);
+      const existing = prev.find(i => i.menuItemId === item.id);
       if (existing) {
         return prev.map(i => 
-          i.menuItem.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+          i.menuItemId === item.id ? { ...i, quantity: i.quantity + 1 } : i
         );
       }
-      return [...prev, { id: `cart-${Date.now()}`, menuItem: item, quantity: 1 }];
+      return [...prev, { 
+        id: `cart-${Date.now()}`, 
+        menuItemId: item.id,
+        menuItemName: item.name,
+        menuItemPrice: item.price,
+        quantity: 1 
+      }];
     });
     toast({ title: 'Added to cart', description: `${item.name} added` });
   };
@@ -98,14 +104,14 @@ export default function Orders() {
         return { ...item, quantity: newQuantity };
       }
       return item;
-    }).filter(Boolean) as OrderItem[]);
+    }).filter(Boolean) as CartItem[]);
   };
 
   const removeFromCart = (itemId: string) => {
     setCart(prev => prev.filter(item => item.id !== itemId));
   };
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.menuItem.price * item.quantity), 0);
+  const subtotal = cart.reduce((sum, item) => sum + (item.menuItemPrice * item.quantity), 0);
   const tax = subtotal * 0.05;
   const total = subtotal + tax;
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -123,7 +129,7 @@ export default function Orders() {
     setShowCart(false);
   };
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (cart.length === 0) {
       toast({ title: 'Cart is empty', description: 'Please add items to the cart first.', variant: 'destructive' });
       return;
@@ -133,17 +139,26 @@ export default function Orders() {
       return;
     }
 
-    addOrder({
-      items: cart,
+    const { error } = await addOrder({
       tableNumber: selectedTable,
-      status: 'pending',
-      createdBy: user?.id || '',
       customerName: customerName || undefined,
       subtotal,
       tax,
       total,
-      isPaid: false,
+      createdBy: user?.id,
+      items: cart.map(item => ({
+        menuItemId: item.menuItemId,
+        menuItemName: item.menuItemName,
+        menuItemPrice: item.menuItemPrice,
+        quantity: item.quantity,
+        notes: item.notes,
+      })),
     });
+
+    if (error) {
+      toast({ title: 'Error', description: error, variant: 'destructive' });
+      return;
+    }
 
     toast({ title: 'Order placed!', description: `Order for Table ${selectedTable} has been sent to the kitchen.` });
 
@@ -153,6 +168,16 @@ export default function Orders() {
     setStep('table');
     setSelectedTable(null);
   };
+
+  if (menuLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   // TABLE SELECTION VIEW
   if (step === 'table') {
@@ -165,7 +190,6 @@ export default function Orders() {
               <p className="text-xs md:text-sm text-muted-foreground">Choose a table to start new order</p>
             </div>
 
-            {/* Legend */}
             <div className="flex flex-wrap gap-3 text-xs">
               {(Object.entries(tableStatusConfig) as [TableStatus, typeof tableStatusConfig[TableStatus]][]).map(([status, config]) => (
                 <div key={status} className="flex items-center gap-1.5">
@@ -176,7 +200,6 @@ export default function Orders() {
             </div>
           </div>
 
-          {/* Table Grid */}
           <div className="flex-1 overflow-y-auto pb-20 md:pb-4">
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
               {Array.from({ length: tableCount }, (_, i) => i + 1).map((tableNum) => {
@@ -209,7 +232,6 @@ export default function Orders() {
   return (
     <MainLayout>
       <div className="flex flex-col h-[calc(100vh-8rem)] md:h-auto animate-fade-in overflow-hidden">
-        {/* Header */}
         <div className="flex-shrink-0 space-y-3 pb-3">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleBackToTables}>
@@ -224,7 +246,6 @@ export default function Orders() {
             </div>
           </div>
 
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -235,7 +256,6 @@ export default function Orders() {
             />
           </div>
 
-          {/* Sort */}
           <div className="flex gap-2 items-center">
             <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
               <SelectTrigger className="w-[130px] h-9 text-xs">
@@ -243,7 +263,6 @@ export default function Orders() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="popular"><span className="flex items-center gap-1"><Flame className="h-3 w-3 text-orange-500" /> Popular</span></SelectItem>
                 <SelectItem value="name">A-Z</SelectItem>
                 <SelectItem value="price-low">Price: Low</SelectItem>
                 <SelectItem value="price-high">Price: High</SelectItem>
@@ -251,9 +270,8 @@ export default function Orders() {
             </Select>
           </div>
 
-          {/* Categories */}
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            {categories.map(category => (
+            {categoryNames.map(category => (
               <Button
                 key={category}
                 variant={selectedCategory === category ? 'default' : 'secondary'}
@@ -267,35 +285,25 @@ export default function Orders() {
           </div>
         </div>
 
-        {/* Main Content */}
         <div className="flex-1 overflow-hidden grid md:grid-cols-3 gap-4">
-          {/* Menu Grid */}
           <div className="md:col-span-2 overflow-y-auto overscroll-contain pb-20 md:pb-4">
             <div className="grid gap-2 grid-cols-2 lg:grid-cols-3">
-              {filteredAndSortedItems.map((item) => {
-                const isPopular = (popularityMap[item.id] || 0) >= 100;
-                return (
-                  <Card key={item.id} className="cursor-pointer hover:border-primary/50 transition-all duration-200 active:scale-[0.98] relative overflow-hidden" onClick={() => addToCart(item)}>
-                    {isPopular && (
-                      <div className="absolute top-1 right-1 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                        <Flame className="h-2.5 w-2.5" />Hot
-                      </div>
-                    )}
-                    <CardContent className="p-3">
-                      <div className="space-y-1">
-                        <h3 className="font-medium text-sm line-clamp-1 pr-8">{item.name}</h3>
-                        <p className="text-[10px] text-muted-foreground line-clamp-1">{item.description}</p>
-                        <div className="flex items-center justify-between pt-1">
-                          <p className="font-bold text-primary text-sm">₹{item.price}</p>
-                          <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Plus className="h-4 w-4 text-primary" />
-                          </div>
+              {filteredAndSortedItems.map((item) => (
+                <Card key={item.id} className="cursor-pointer hover:border-primary/50 transition-all duration-200 active:scale-[0.98] relative overflow-hidden" onClick={() => addToCart(item)}>
+                  <CardContent className="p-3">
+                    <div className="space-y-1">
+                      <h3 className="font-medium text-sm line-clamp-1 pr-8">{item.name}</h3>
+                      <p className="text-[10px] text-muted-foreground line-clamp-1">{item.description}</p>
+                      <div className="flex items-center justify-between pt-1">
+                        <p className="font-bold text-primary text-sm">₹{item.price}</p>
+                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Plus className="h-4 w-4 text-primary" />
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
             {filteredAndSortedItems.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
@@ -327,8 +335,8 @@ export default function Orders() {
                     cart.map(item => (
                       <div key={item.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-xs truncate">{item.menuItem.name}</p>
-                          <p className="text-[10px] text-muted-foreground">₹{item.menuItem.price} × {item.quantity}</p>
+                          <p className="font-medium text-xs truncate">{item.menuItemName}</p>
+                          <p className="text-[10px] text-muted-foreground">₹{item.menuItemPrice} × {item.quantity}</p>
                         </div>
                         <div className="flex items-center gap-0.5">
                           <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQuantity(item.id, -1)}><Minus className="h-3 w-3" /></Button>
@@ -393,32 +401,31 @@ export default function Orders() {
                     cart.map(item => (
                       <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{item.menuItem.name}</p>
-                          <p className="text-xs text-muted-foreground">₹{item.menuItem.price} × {item.quantity} = ₹{(item.menuItem.price * item.quantity).toFixed(2)}</p>
+                          <p className="font-medium text-sm">{item.menuItemName}</p>
+                          <p className="text-xs text-muted-foreground">₹{item.menuItemPrice} × {item.quantity}</p>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Button size="icon" variant="secondary" className="h-8 w-8 rounded-full" onClick={() => updateQuantity(item.id, -1)}><Minus className="h-3 w-3" /></Button>
-                          <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                          <Button size="icon" variant="secondary" className="h-8 w-8 rounded-full" onClick={() => updateQuantity(item.id, 1)}><Plus className="h-3 w-3" /></Button>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive ml-1" onClick={() => removeFromCart(item.id)}><Trash2 className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQuantity(item.id, -1)}><Minus className="h-4 w-4" /></Button>
+                          <span className="w-8 text-center font-medium">{item.quantity}</span>
+                          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQuantity(item.id, 1)}><Plus className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => removeFromCart(item.id)}><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       </div>
                     ))
                   )}
                 </div>
 
-                <div className="sticky bottom-0 bg-background pt-3 -mx-4 px-4 pb-4 border-t space-y-3">
-                  {cart.length > 0 && (
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
-                      <div className="flex justify-between text-sm"><span className="text-muted-foreground">Tax (5%)</span><span>₹{tax.toFixed(2)}</span></div>
-                      <div className="flex justify-between font-bold text-lg pt-1"><span>Total</span><span className="text-primary">₹{total.toFixed(2)}</span></div>
-                    </div>
-                  )}
-                  <Button className="w-full h-14 text-base font-semibold" size="lg" onClick={handlePlaceOrder} disabled={cart.length === 0}>
-                    Place Order - ₹{total.toFixed(2)}
-                  </Button>
-                </div>
+                {cart.length > 0 && (
+                  <div className="space-y-2 pt-4 border-t">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Tax (5%)</span><span>₹{tax.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>Total</span><span className="text-primary">₹{total.toFixed(2)}</span></div>
+                  </div>
+                )}
+
+                <Button className="w-full h-14 text-lg" size="lg" onClick={handlePlaceOrder} disabled={cart.length === 0}>
+                  Place Order - ₹{total.toFixed(2)}
+                </Button>
               </div>
             </div>
           </div>

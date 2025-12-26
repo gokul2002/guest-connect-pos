@@ -1,68 +1,112 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Order, MenuItem } from '@/types/pos';
-import { mockOrders, mockMenuItems } from '@/data/mockData';
+import { useOrders, DbOrder } from '@/hooks/useOrders';
+import { useMenuItems, DbMenuItem, MenuCategory } from '@/hooks/useMenuItems';
 
 interface POSContextType {
-  orders: Order[];
-  setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
-  menuItems: MenuItem[];
-  setMenuItems: React.Dispatch<React.SetStateAction<MenuItem[]>>;
+  // Orders
+  orders: DbOrder[];
+  ordersLoading: boolean;
+  addOrder: (orderData: {
+    tableNumber: number;
+    customerName?: string;
+    subtotal: number;
+    tax: number;
+    total: number;
+    createdBy?: string;
+    items: Array<{
+      menuItemId?: string;
+      menuItemName: string;
+      menuItemPrice: number;
+      quantity: number;
+      notes?: string;
+    }>;
+  }) => Promise<{ error: string | null; orderId?: string }>;
+  updateOrderStatus: (orderId: string, status: DbOrder['status']) => Promise<{ error: string | null }>;
+  processPayment: (orderId: string, method: 'cash' | 'card' | 'upi') => Promise<{ error: string | null }>;
+  getTableStatus: (tableNum: number) => 'free' | 'ordered' | 'preparing' | 'ready';
+  refetchOrders: () => Promise<void>;
+
+  // Menu Items
+  menuItems: DbMenuItem[];
+  categories: MenuCategory[];
+  menuLoading: boolean;
+  addCategory: (name: string) => Promise<{ error: string | null; data?: unknown }>;
+  addMenuItem: (item: {
+    name: string;
+    price: number;
+    categoryId: string | null;
+    description?: string;
+    available?: boolean;
+  }) => Promise<{ error: string | null }>;
+  updateMenuItem: (id: string, updates: Partial<{
+    name: string;
+    price: number;
+    categoryId: string | null;
+    description: string;
+    available: boolean;
+  }>) => Promise<{ error: string | null }>;
+  deleteMenuItem: (id: string) => Promise<{ error: string | null }>;
+  toggleMenuItemAvailability: (id: string, available: boolean) => Promise<{ error: string | null }>;
+  refetchMenu: () => Promise<void>;
+
+  // Settings
   tableCount: number;
   setTableCount: React.Dispatch<React.SetStateAction<number>>;
-  addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateOrderStatus: (orderId: string, status: Order['status']) => void;
-  getTableStatus: (tableNum: number) => 'free' | 'ordered' | 'preparing' | 'ready';
 }
 
 const POSContext = createContext<POSContextType | undefined>(undefined);
 
 export function POSProvider({ children }: { children: ReactNode }) {
-  const [orders, setOrders] = useState<Order[]>(mockOrders);
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(mockMenuItems);
   const [tableCount, setTableCount] = useState<number>(10);
+  
+  const {
+    orders,
+    loading: ordersLoading,
+    addOrder,
+    updateOrderStatus,
+    processPayment,
+    getTableStatus,
+    refetch: refetchOrders,
+  } = useOrders();
 
-  const addOrder = (orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newOrder: Order = {
-      ...orderData,
-      id: `ORD${String(orders.length + 1).padStart(3, '0')}`,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    setOrders(prev => [...prev, newOrder]);
-  };
-
-  const updateOrderStatus = (orderId: string, status: Order['status']) => {
-    setOrders(prev =>
-      prev.map(order =>
-        order.id === orderId
-          ? { ...order, status, updatedAt: new Date() }
-          : order
-      )
-    );
-  };
-
-  const getTableStatus = (tableNum: number): 'free' | 'ordered' | 'preparing' | 'ready' => {
-    const tableOrders = orders.filter(
-      o => o.tableNumber === tableNum && !o.isPaid && o.status !== 'served' && o.status !== 'cancelled'
-    );
-    if (tableOrders.length === 0) return 'free';
-    if (tableOrders.some(o => o.status === 'ready')) return 'ready';
-    if (tableOrders.some(o => o.status === 'preparing')) return 'preparing';
-    return 'ordered';
-  };
+  const {
+    menuItems,
+    categories,
+    loading: menuLoading,
+    addCategory,
+    addMenuItem,
+    updateMenuItem,
+    deleteMenuItem,
+    toggleAvailability,
+    refetch: refetchMenu,
+  } = useMenuItems();
 
   return (
     <POSContext.Provider
       value={{
+        // Orders
         orders,
-        setOrders,
-        menuItems,
-        setMenuItems,
-        tableCount,
-        setTableCount,
+        ordersLoading,
         addOrder,
         updateOrderStatus,
+        processPayment,
         getTableStatus,
+        refetchOrders,
+
+        // Menu
+        menuItems,
+        categories,
+        menuLoading,
+        addCategory,
+        addMenuItem,
+        updateMenuItem,
+        deleteMenuItem,
+        toggleMenuItemAvailability: toggleAvailability,
+        refetchMenu,
+
+        // Settings
+        tableCount,
+        setTableCount,
       }}
     >
       {children}

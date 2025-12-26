@@ -5,24 +5,26 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
+import { DbOrder } from '@/hooks/useOrders';
 
 export default function Kitchen() {
-  const { orders, updateOrderStatus } = usePOS();
+  const { orders, ordersLoading, updateOrderStatus } = usePOS();
   const { toast } = useToast();
 
   const pendingOrders = orders.filter(o => o.status === 'pending');
   const preparingOrders = orders.filter(o => o.status === 'preparing');
   const readyOrders = orders.filter(o => o.status === 'ready');
 
-  const handleStatusChange = (orderId: string, newStatus: 'preparing' | 'ready' | 'served') => {
-    updateOrderStatus(orderId, newStatus);
-    toast({
-      title: 'Order Updated',
-      description: `Order ${orderId} is now ${newStatus}.`,
-    });
+  const handleStatusChange = async (orderId: string, newStatus: DbOrder['status']) => {
+    const { error } = await updateOrderStatus(orderId, newStatus);
+    if (error) {
+      toast({ title: 'Error', description: error, variant: 'destructive' });
+    } else {
+      toast({ title: 'Order Updated', description: `Order is now ${newStatus}.` });
+    }
   };
 
-  const OrderCard = ({ order, showActions = true }: { order: typeof orders[0]; showActions?: boolean }) => (
+  const OrderCard = ({ order, showActions = true }: { order: DbOrder; showActions?: boolean }) => (
     <Card className="animate-scale-in">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
@@ -30,7 +32,7 @@ export default function Kitchen() {
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary text-sm font-bold">
               T{order.tableNumber}
             </span>
-            {order.id}
+            Order
           </CardTitle>
           <div className="flex items-center gap-1 text-muted-foreground">
             <Timer className="h-4 w-4" />
@@ -48,7 +50,7 @@ export default function Kitchen() {
           {order.items.map(item => (
             <div key={item.id} className="flex justify-between items-start p-2 rounded bg-muted/50">
               <div>
-                <p className="font-medium">{item.menuItem.name}</p>
+                <p className="font-medium">{item.menuItemName}</p>
                 {item.notes && (
                   <p className="text-sm text-warning">Note: {item.notes}</p>
                 )}
@@ -97,6 +99,16 @@ export default function Kitchen() {
     </Card>
   );
 
+  if (ordersLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <div className="space-y-4 md:space-y-6 animate-fade-in">
@@ -142,7 +154,7 @@ export default function Kitchen() {
           </Card>
         </div>
 
-        {/* Orders - Tabs on mobile, Grid on desktop */}
+        {/* Orders */}
         <div className="space-y-4">
           {/* Mobile: Stacked sections */}
           <div className="space-y-6 lg:hidden">
@@ -199,7 +211,6 @@ export default function Kitchen() {
 
           {/* Desktop: 3-column grid */}
           <div className="hidden lg:grid gap-6 lg:grid-cols-3">
-            {/* Pending */}
             <div className="space-y-4">
               <h2 className="font-display text-xl font-semibold flex items-center gap-2">
                 <Clock className="h-5 w-5 text-warning" />
@@ -220,7 +231,6 @@ export default function Kitchen() {
               </div>
             </div>
 
-            {/* Preparing */}
             <div className="space-y-4">
               <h2 className="font-display text-xl font-semibold flex items-center gap-2">
                 <ChefHat className="h-5 w-5 text-primary" />
@@ -241,7 +251,6 @@ export default function Kitchen() {
               </div>
             </div>
 
-            {/* Ready */}
             <div className="space-y-4">
               <h2 className="font-display text-xl font-semibold flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-success" />

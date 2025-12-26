@@ -11,15 +11,17 @@ import {
 } from '@/components/ui/dialog';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { usePOS } from '@/contexts/POSContext';
-import { Order } from '@/types/pos';
+import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
+import { DbOrder } from '@/hooks/useOrders';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
 export default function Billing() {
-  const { orders, setOrders } = usePOS();
+  const { orders, ordersLoading, processPayment } = usePOS();
+  const { settings } = useRestaurantSettings();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<DbOrder | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -32,20 +34,16 @@ export default function Billing() {
     order.tableNumber.toString().includes(searchQuery)
   );
 
-  const handlePayment = (orderId: string, method: 'cash' | 'card' | 'upi') => {
-    setOrders(prev => prev.map(order =>
-      order.id === orderId
-        ? { ...order, isPaid: true, paymentMethod: method, updatedAt: new Date() }
-        : order
-    ));
-    
-    toast({
-      title: 'Payment Successful',
-      description: `Order ${orderId} paid via ${method.toUpperCase()}.`,
-    });
+  const handlePayment = async (orderId: string, method: 'cash' | 'card' | 'upi') => {
+    const { error } = await processPayment(orderId, method);
+    if (error) {
+      toast({ title: 'Error', description: error, variant: 'destructive' });
+    } else {
+      toast({ title: 'Payment Successful', description: `Payment processed via ${method.toUpperCase()}.` });
+    }
   };
 
-  const handlePrintReceipt = (order: Order) => {
+  const handlePrintReceipt = (order: DbOrder) => {
     setSelectedOrder(order);
     setShowReceipt(true);
   };
@@ -58,12 +56,13 @@ export default function Billing() {
         printWindow.document.write(`
           <html>
             <head>
-              <title>Receipt - ${selectedOrder?.id}</title>
+              <title>Receipt</title>
               <style>
                 body { font-family: 'Courier New', monospace; font-size: 12px; padding: 10px; max-width: 280px; }
                 .header { text-align: center; margin-bottom: 15px; }
                 .header h1 { font-size: 18px; margin: 0; }
                 .header p { margin: 5px 0; font-size: 10px; }
+                .header img { max-width: 80px; margin-bottom: 10px; }
                 .divider { border-top: 1px dashed #000; margin: 10px 0; }
                 .item { display: flex; justify-content: space-between; margin: 5px 0; }
                 .total { font-weight: bold; font-size: 14px; }
@@ -86,6 +85,18 @@ export default function Billing() {
   const todayTotal = paidOrders
     .filter(o => new Date(o.updatedAt).toDateString() === new Date().toDateString())
     .reduce((sum, o) => sum + o.total, 0);
+
+  const currencySymbol = settings?.currencySymbol || '₹';
+
+  if (ordersLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -111,7 +122,7 @@ export default function Billing() {
           </Card>
           <Card className="border-success/30 bg-success/5">
             <CardContent className="p-3 md:p-4">
-              <p className="text-xl md:text-2xl font-bold text-success">₹{todayTotal.toLocaleString()}</p>
+              <p className="text-xl md:text-2xl font-bold text-success">{currencySymbol}{todayTotal.toLocaleString()}</p>
               <p className="text-xs md:text-sm text-muted-foreground">Today</p>
             </CardContent>
           </Card>
@@ -150,14 +161,14 @@ export default function Billing() {
                           T{order.tableNumber}
                         </div>
                         <div>
-                          <p className="font-medium text-sm md:text-base">{order.id}</p>
+                          <p className="font-medium text-sm md:text-base">Table {order.tableNumber}</p>
                           <p className="text-xs md:text-sm text-muted-foreground">
                             {order.customerName || 'Walk-in'} • {order.items.length} items
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg md:text-xl font-bold text-primary">₹{order.total}</p>
+                        <p className="text-lg md:text-xl font-bold text-primary">{currencySymbol}{order.total}</p>
                       </div>
                     </div>
                     
@@ -221,14 +232,14 @@ export default function Billing() {
                     <div className="flex items-center gap-2 md:gap-3">
                       <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5 text-success" />
                       <div>
-                        <p className="font-medium text-xs md:text-sm">{order.id} - T{order.tableNumber}</p>
+                        <p className="font-medium text-xs md:text-sm">Table {order.tableNumber}</p>
                         <p className="text-xs text-muted-foreground">
                           {order.paymentMethod?.toUpperCase()}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm md:text-base">₹{order.total}</span>
+                      <span className="font-bold text-sm md:text-base">{currencySymbol}{order.total}</span>
                       <Button 
                         size="sm" 
                         variant="ghost"
@@ -256,18 +267,18 @@ export default function Billing() {
               <>
                 <div ref={receiptRef} className="bg-background p-4 rounded-lg border font-mono text-sm">
                   <div className="header text-center mb-4">
-                    <h1 className="text-xl font-bold">HotelPOS</h1>
-                    <p className="text-muted-foreground text-xs">123 Restaurant Street</p>
-                    <p className="text-muted-foreground text-xs">Tel: +91 9876543210</p>
+                    {settings?.restaurantLogoUrl && (
+                      <img src={settings.restaurantLogoUrl} alt="Logo" className="mx-auto mb-2" style={{ maxWidth: '80px' }} />
+                    )}
+                    <h1 className="text-xl font-bold">{settings?.restaurantName || 'HotelPOS'}</h1>
+                    {settings?.restaurantAddress && (
+                      <p className="text-muted-foreground text-xs whitespace-pre-line">{settings.restaurantAddress}</p>
+                    )}
                   </div>
                   
                   <div className="border-t border-dashed my-3" />
                   
                   <div className="space-y-1 text-xs">
-                    <div className="flex justify-between">
-                      <span>Order:</span>
-                      <span>{selectedOrder.id}</span>
-                    </div>
                     <div className="flex justify-between">
                       <span>Table:</span>
                       <span>{selectedOrder.tableNumber}</span>
@@ -289,8 +300,8 @@ export default function Billing() {
                   <div className="space-y-2">
                     {selectedOrder.items.map(item => (
                       <div key={item.id} className="flex justify-between text-xs">
-                        <span>{item.quantity}x {item.menuItem.name}</span>
-                        <span>₹{item.menuItem.price * item.quantity}</span>
+                        <span>{item.quantity}x {item.menuItemName}</span>
+                        <span>{currencySymbol}{item.menuItemPrice * item.quantity}</span>
                       </div>
                     ))}
                   </div>
@@ -300,15 +311,15 @@ export default function Billing() {
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
                       <span>Subtotal:</span>
-                      <span>₹{selectedOrder.subtotal.toFixed(2)}</span>
+                      <span>{currencySymbol}{selectedOrder.subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Tax (5%):</span>
-                      <span>₹{selectedOrder.tax.toFixed(2)}</span>
+                      <span>Tax ({settings?.taxPercentage || 5}%):</span>
+                      <span>{currencySymbol}{selectedOrder.tax.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-base pt-2">
                       <span>TOTAL:</span>
-                      <span>₹{selectedOrder.total.toFixed(2)}</span>
+                      <span>{currencySymbol}{selectedOrder.total.toFixed(2)}</span>
                     </div>
                   </div>
                   
