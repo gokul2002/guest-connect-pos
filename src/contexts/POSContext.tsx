@@ -11,10 +11,13 @@ interface POSContextType {
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
   menuItems: MenuItem[];
   setMenuItems: React.Dispatch<React.SetStateAction<MenuItem[]>>;
+  tableCount: number;
+  setTableCount: React.Dispatch<React.SetStateAction<number>>;
   addUser: (user: Omit<User, 'id' | 'createdAt'>) => void;
   removeUser: (id: string) => void;
   addOrder: (order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateOrderStatus: (orderId: string, status: Order['status']) => void;
+  getTableStatus: (tableNum: number) => 'free' | 'ordered' | 'preparing' | 'ready';
   login: (email: string, role: UserRole) => boolean;
   logout: () => void;
 }
@@ -26,6 +29,7 @@ export function POSProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [orders, setOrders] = useState<Order[]>(mockOrders);
   const [menuItems, setMenuItems] = useState<MenuItem[]>(mockMenuItems);
+  const [tableCount, setTableCount] = useState<number>(10);
 
   const addUser = (userData: Omit<User, 'id' | 'createdAt'>) => {
     const newUser: User = {
@@ -60,6 +64,16 @@ export function POSProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const getTableStatus = (tableNum: number): 'free' | 'ordered' | 'preparing' | 'ready' => {
+    const tableOrders = orders.filter(
+      o => o.tableNumber === tableNum && !o.isPaid && o.status !== 'served' && o.status !== 'cancelled'
+    );
+    if (tableOrders.length === 0) return 'free';
+    if (tableOrders.some(o => o.status === 'ready')) return 'ready';
+    if (tableOrders.some(o => o.status === 'preparing')) return 'preparing';
+    return 'ordered';
+  };
+
   const login = (email: string, role: UserRole): boolean => {
     const user = users.find(u => u.email === email && u.role === role);
     if (user) {
@@ -84,10 +98,13 @@ export function POSProvider({ children }: { children: ReactNode }) {
         setOrders,
         menuItems,
         setMenuItems,
+        tableCount,
+        setTableCount,
         addUser,
         removeUser,
         addOrder,
         updateOrderStatus,
+        getTableStatus,
         login,
         logout,
       }}
