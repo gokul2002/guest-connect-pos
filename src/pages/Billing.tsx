@@ -8,27 +8,22 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
-import { usePrintService } from '@/hooks/usePrintService';
 import { DbOrder } from '@/hooks/useOrders';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { OrderData } from '@/lib/qzTray';
 
 export default function Billing() {
   const { orders, ordersLoading, processPayment, orderSources } = usePOS();
   const { settings } = useRestaurantSettings();
   const { toast } = useToast();
-  const { printOrder, isConnected: qzConnected } = usePrintService();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<DbOrder | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
-  const [isPrinting, setIsPrinting] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   // Helper to get order source name
@@ -64,83 +59,48 @@ export default function Billing() {
   };
 
   const printReceipt = async () => {
-    if (!selectedOrder) return;
-
-    setIsPrinting(true);
-
-    // Use QZ Tray if connected, otherwise fallback to browser print
-    if (qzConnected && settings) {
-      const sourceName = getOrderSourceName(selectedOrder.orderSourceId);
-      const orderData: OrderData = {
-        id: selectedOrder.id,
-        tableNumber: selectedOrder.tableNumber,
-        customerName: selectedOrder.customerName || undefined,
-        items: selectedOrder.items.map(item => ({
-          menuItemName: item.menuItemName,
-          menuItemPrice: item.menuItemPrice,
-          quantity: item.quantity,
-        })),
-        subtotal: selectedOrder.subtotal,
-        tax: selectedOrder.tax,
-        total: selectedOrder.total,
-        createdAt: new Date(selectedOrder.createdAt),
-        paymentMethod: selectedOrder.paymentMethod || undefined,
-        orderSourceName: sourceName || undefined,
-      };
-
-      // Print only to cash printer (no kitchen for billing reprints)
-      const result = await printOrder(orderData, false);
-
-      if (result.success) {
-        toast({ title: 'Printed', description: 'Receipt sent to thermal printer.' });
+    const printContent = receiptRef.current;
+    if (printContent && selectedOrder) {
+      const printWindow = window.open('', '', 'width=300,height=600');
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Receipt</title>
+              <style>
+                body { font-family: 'Courier New', monospace; font-size: 12px; padding: 10px; max-width: 280px; }
+                .header { text-align: center; margin-bottom: 15px; }
+                .header h1 { font-size: 18px; margin: 0; }
+                .header p { margin: 5px 0; font-size: 10px; }
+                .header img { max-width: 80px; margin-bottom: 10px; }
+                .divider { border-top: 1px dashed #000; margin: 10px 0; }
+                .item { display: flex; justify-content: space-between; margin: 5px 0; }
+                .total { font-weight: bold; font-size: 14px; }
+                .footer { text-align: center; margin-top: 15px; font-size: 10px; }
+              </style>
+            </head>
+            <body>
+              ${printContent.innerHTML}
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+        printWindow.close();
       }
-    } else {
-      // Fallback to browser print
-      const printContent = receiptRef.current;
-      if (printContent) {
-        const printWindow = window.open('', '', 'width=300,height=600');
-        if (printWindow) {
-          printWindow.document.write(`
-            <html>
-              <head>
-                <title>Receipt</title>
-                <style>
-                  body { font-family: 'Courier New', monospace; font-size: 12px; padding: 10px; max-width: 280px; }
-                  .header { text-align: center; margin-bottom: 15px; }
-                  .header h1 { font-size: 18px; margin: 0; }
-                  .header p { margin: 5px 0; font-size: 10px; }
-                  .header img { max-width: 80px; margin-bottom: 10px; }
-                  .divider { border-top: 1px dashed #000; margin: 10px 0; }
-                  .item { display: flex; justify-content: space-between; margin: 5px 0; }
-                  .total { font-weight: bold; font-size: 14px; }
-                  .footer { text-align: center; margin-top: 15px; font-size: 10px; }
-                </style>
-              </head>
-              <body>
-                ${printContent.innerHTML}
-              </body>
-            </html>
-          `);
-          printWindow.document.close();
-          printWindow.print();
-          printWindow.close();
+      
+      // Mark order as served to free the table
+      if (selectedOrder.isPaid) {
+        const { error } = await supabase
+          .from('orders')
+          .update({ status: 'served' })
+          .eq('id', selectedOrder.id);
+        
+        if (!error) {
+          toast({ title: 'Table Freed', description: `Table ${selectedOrder.tableNumber} is now available.` });
         }
       }
     }
-
-    // Mark order as served to free the table
-    if (selectedOrder.isPaid) {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: 'served' })
-        .eq('id', selectedOrder.id);
-
-      if (!error) {
-        toast({ title: 'Table Freed', description: `Table ${selectedOrder.tableNumber} is now available.` });
-      }
-    }
-
-    setIsPrinting(false);
     setShowReceipt(false);
   };
 
@@ -338,9 +298,6 @@ export default function Billing() {
           <DialogContent className="max-w-[90vw] sm:max-w-sm">
             <DialogHeader>
               <DialogTitle className="font-display">Receipt Preview</DialogTitle>
-              <DialogDescription>
-                {qzConnected ? 'Will print to thermal printer' : 'Will open browser print dialog'}
-              </DialogDescription>
             </DialogHeader>
             
             {selectedOrder && (
@@ -444,9 +401,9 @@ export default function Billing() {
                   </div>
                 </div>
                 
-                <Button onClick={printReceipt} className="w-full" disabled={isPrinting}>
+                <Button onClick={printReceipt} className="w-full">
                   <Printer className="h-4 w-4 mr-2" />
-                  {isPrinting ? 'Printing...' : 'Print Receipt'}
+                  Print Receipt
                 </Button>
               </>
             )}
