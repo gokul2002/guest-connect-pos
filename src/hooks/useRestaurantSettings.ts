@@ -27,6 +27,7 @@ export function useRestaurantSettings() {
           currencySymbol: data.currency_symbol,
           businessHoursOpen: data.business_hours_open,
           businessHoursClose: data.business_hours_close,
+          kitchenEnabled: data.kitchen_enabled,
         });
       }
     } catch (err) {
@@ -48,6 +49,7 @@ export function useRestaurantSettings() {
       if (newSettings.currencySymbol !== undefined) updateData.currency_symbol = newSettings.currencySymbol;
       if (newSettings.businessHoursOpen !== undefined) updateData.business_hours_open = newSettings.businessHoursOpen;
       if (newSettings.businessHoursClose !== undefined) updateData.business_hours_close = newSettings.businessHoursClose;
+      if (newSettings.kitchenEnabled !== undefined) updateData.kitchen_enabled = newSettings.kitchenEnabled;
 
       const { error: updateError } = await supabase
         .from('restaurant_settings')

@@ -15,6 +15,7 @@ interface POSContextType {
     tax: number;
     total: number;
     createdBy?: string;
+    status?: 'pending' | 'ready';
     items: Array<{
       menuItemId?: string;
       menuItemName: string;

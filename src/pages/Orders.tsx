@@ -192,7 +192,8 @@ export default function Orders() {
       const result = await addItemsToOrder(existingOrderId, itemsToAdd);
       error = result.error;
     } else {
-      // Create new order
+      // Create new order - check if kitchen is enabled
+      const initialStatus = settings?.kitchenEnabled === false ? 'ready' : 'pending';
       const result = await addOrder({
         tableNumber: selectedTable ?? null,
         orderSourceId: selectedOrderSource?.id ?? null,
@@ -201,6 +202,7 @@ export default function Orders() {
         tax,
         total,
         createdBy: user?.id,
+        status: initialStatus,
         items: itemsToAdd,
       });
       error = result.error;
@@ -212,9 +214,10 @@ export default function Orders() {
     }
 
     const orderTarget = selectedTable ? `Table ${selectedTable}` : selectedOrderSource?.name;
+    const kitchenMsg = settings?.kitchenEnabled === false ? 'Order is ready for billing.' : 'Order sent to kitchen.';
     toast({ 
       title: existingOrderId ? 'Items added!' : 'Order placed!', 
-      description: `${existingOrderId ? 'New items added to' : 'Order for'} ${orderTarget} has been sent to the kitchen.` 
+      description: `${existingOrderId ? 'New items added to' : 'Order for'} ${orderTarget}. ${existingOrderId ? '' : kitchenMsg}` 
     });
     setCart([]);
     setCustomerName('');

@@ -94,6 +94,7 @@ export function useOrders() {
     tax: number;
     total: number;
     createdBy?: string;
+    status?: 'pending' | 'ready'; // Allow specifying initial status
     items: Array<{
       menuItemId?: string;
       menuItemName: string;
@@ -113,7 +114,7 @@ export function useOrders() {
           tax: orderData.tax,
           total: orderData.total,
           created_by: orderData.createdBy || null,
-          status: 'pending',
+          status: orderData.status || 'pending',
         })
         .select()
         .single();
