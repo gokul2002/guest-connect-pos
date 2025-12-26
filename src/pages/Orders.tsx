@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Minus, ShoppingCart, Trash2, Search, ArrowUpDown, ArrowLeft, Users, UtensilsCrossed, Clock, CheckCircle } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Trash2, Search, ArrowUpDown, ArrowLeft, Users, UtensilsCrossed, Clock, CheckCircle, ClipboardList } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +36,7 @@ const tableStatusConfig: Record<TableStatus, { label: string; color: string; bgC
 };
 
 export default function Orders() {
-  const { menuItems, categories, menuLoading, addOrder, addItemsToOrder, tableCount, getTableStatus, getActiveOrderForTable } = usePOS();
+  const { menuItems, categories, menuLoading, addOrder, addItemsToOrder, tableCount, getTableStatus, getActiveOrderForTable, orders } = usePOS();
   const { user } = useAuth();
   const { toast } = useToast();
   const { settings } = useRestaurantSettings();
@@ -51,6 +51,10 @@ export default function Orders() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'popular' | 'name' | 'price-low' | 'price-high'>('name');
   const [showCart, setShowCart] = useState(false);
+  const [showExistingItems, setShowExistingItems] = useState(false);
+
+  // Get existing order details
+  const existingOrder = existingOrderId ? orders.find(o => o.id === existingOrderId) : null;
 
   const categoryNames = ['All', ...categories.map(c => c.name)];
 
@@ -346,23 +350,51 @@ export default function Orders() {
           </div>
 
           {/* Cart - Desktop */}
-          <div className="hidden md:block md:col-span-1">
+          <div className="hidden md:block md:col-span-1 space-y-4">
+            {/* Existing Order Items */}
+            {existingOrder && (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardHeader className="pb-2 p-4">
+                  <CardTitle className="font-display flex items-center gap-2 text-base text-primary">
+                    <ClipboardList className="h-4 w-4" />
+                    Current Order ({existingOrder.items.length} items)
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Status: <span className="capitalize font-medium">{existingOrder.status}</span> • Total: {currencySymbol}{existingOrder.total.toFixed(2)}
+                  </p>
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <div className="space-y-1.5 max-h-[150px] overflow-y-auto">
+                    {existingOrder.items.map(item => (
+                      <div key={item.id} className="flex justify-between items-center text-xs p-1.5 rounded bg-background/50">
+                        <span className="truncate flex-1">{item.menuItemName}</span>
+                        <span className="text-muted-foreground ml-2">×{item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* New Items Cart */}
             <Card className="sticky top-6">
               <CardHeader className="pb-3 p-4">
                 <CardTitle className="font-display flex items-center gap-2 text-base">
                   <ShoppingCart className="h-4 w-4" />
-                  Cart ({cartItemCount})
+                  {existingOrderId ? 'New Items' : 'Cart'} ({cartItemCount})
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 p-4 pt-0">
-                <div>
-                  <Label htmlFor="customer" className="text-xs">Customer Name</Label>
-                  <Input id="customer" placeholder="Name (Optional)" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-9" />
-                </div>
+                {!existingOrderId && (
+                  <div>
+                    <Label htmlFor="customer" className="text-xs">Customer Name</Label>
+                    <Input id="customer" placeholder="Name (Optional)" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-9" />
+                  </div>
+                )}
 
                 <div className="space-y-2 max-h-[250px] overflow-y-auto">
                   {cart.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-6 text-sm">No items in cart</p>
+                    <p className="text-center text-muted-foreground py-6 text-sm">No new items added</p>
                   ) : (
                     cart.map(item => (
                       <div key={item.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
@@ -383,9 +415,9 @@ export default function Orders() {
 
                 {cart.length > 0 && (
                   <div className="space-y-1 pt-3 border-t">
-                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Subtotal (excl. tax)</span><span>{currencySymbol}{subtotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">New Items Subtotal</span><span>{currencySymbol}{subtotal.toFixed(2)}</span></div>
                     <div className="flex justify-between text-xs"><span className="text-muted-foreground">Tax ({settings?.taxPercentage || 10}% incl.)</span><span>{currencySymbol}{tax.toFixed(2)}</span></div>
-                    <div className="flex justify-between font-bold text-base pt-2 border-t"><span>Total</span><span className="text-primary">{currencySymbol}{total.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-bold text-base pt-2 border-t"><span>New Total</span><span className="text-primary">{currencySymbol}{total.toFixed(2)}</span></div>
                   </div>
                 )}
 
@@ -397,13 +429,66 @@ export default function Orders() {
           </div>
         </div>
 
+        {/* Mobile: View Existing Order Button */}
+        {existingOrder && (
+          <div className="md:hidden fixed bottom-36 left-4 right-4 z-40">
+            <Button variant="outline" className="w-full h-10 shadow-md border-primary/30 bg-primary/5" onClick={() => setShowExistingItems(true)}>
+              <ClipboardList className="h-4 w-4 mr-2" />
+              View Current Order ({existingOrder.items.length} items)
+            </Button>
+          </div>
+        )}
+
         {/* Mobile Cart Button */}
         <div className="md:hidden fixed bottom-20 left-4 right-4 z-40">
           <Button className="w-full h-12 shadow-lg" onClick={() => setShowCart(true)}>
             <ShoppingCart className="h-4 w-4 mr-2" />
-            View Cart ({cartItemCount}) - {currencySymbol}{total.toFixed(2)}
+            {existingOrderId ? 'New Items' : 'Cart'} ({cartItemCount}) - {currencySymbol}{total.toFixed(2)}
           </Button>
         </div>
+
+        {/* Mobile: Existing Order Items Sheet */}
+        {showExistingItems && existingOrder && (
+          <div className="md:hidden fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" onClick={() => setShowExistingItems(false)}>
+            <div className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl max-h-[60vh] overflow-hidden animate-in slide-in-from-bottom" onClick={(e) => e.stopPropagation()}>
+              <div className="sticky top-0 bg-background pt-2 pb-3 px-4 border-b z-10">
+                <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-3" />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="font-display text-lg font-bold flex items-center gap-2 text-primary">
+                      <ClipboardList className="h-5 w-5" />
+                      Current Order
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      Status: <span className="capitalize font-medium">{existingOrder.status}</span> • {existingOrder.customerName || 'No name'}
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setShowExistingItems(false)}>Close</Button>
+                </div>
+              </div>
+              
+              <div className="overflow-y-auto p-4" style={{ maxHeight: 'calc(60vh - 100px)' }}>
+                <div className="space-y-2">
+                  {existingOrder.items.map(item => (
+                    <div key={item.id} className="flex justify-between items-center p-3 rounded-xl bg-muted/50">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{item.menuItemName}</p>
+                        <p className="text-xs text-muted-foreground">{currencySymbol}{item.menuItemPrice} each</p>
+                      </div>
+                      <span className="text-sm font-medium bg-primary/10 text-primary px-2 py-1 rounded">×{item.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 pt-4 border-t">
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Order Total</span>
+                    <span className="text-primary">{currencySymbol}{existingOrder.total.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Mobile Cart Sheet */}
         {showCart && (
@@ -414,7 +499,7 @@ export default function Orders() {
                 <div className="flex items-center justify-between">
                   <h2 className="font-display text-lg font-bold flex items-center gap-2">
                     <ShoppingCart className="h-5 w-5" />
-                    Table {selectedTable} - Cart ({cartItemCount})
+                    {existingOrderId ? 'New Items' : `Table ${selectedTable} - Cart`} ({cartItemCount})
                   </h2>
                   <Button variant="ghost" size="sm" onClick={() => setShowCart(false)}>Close</Button>
                 </div>
@@ -422,14 +507,16 @@ export default function Orders() {
               
               <div className="overflow-y-auto" style={{ maxHeight: 'calc(80vh - 80px - 80px)' }}>
                 <div className="p-4 space-y-4">
-                  <div>
-                    <Label htmlFor="customer-mobile" className="text-sm font-medium">Customer Name</Label>
-                    <Input id="customer-mobile" placeholder="Name (Optional)" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-12 mt-1" />
-                  </div>
+                  {!existingOrderId && (
+                    <div>
+                      <Label htmlFor="customer-mobile" className="text-sm font-medium">Customer Name</Label>
+                      <Input id="customer-mobile" placeholder="Name (Optional)" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-12 mt-1" />
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     {cart.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-8">No items in cart</p>
+                      <p className="text-center text-muted-foreground py-8">No new items added</p>
                     ) : (
                       cart.map(item => (
                         <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
@@ -450,9 +537,9 @@ export default function Orders() {
 
                   {cart.length > 0 && (
                     <div className="space-y-2 pt-4 border-t">
-                      <div className="flex justify-between"><span className="text-muted-foreground">Subtotal (excl. tax)</span><span>{currencySymbol}{subtotal.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">New Items Subtotal</span><span>{currencySymbol}{subtotal.toFixed(2)}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Tax ({settings?.taxPercentage || 10}% incl.)</span><span>{currencySymbol}{tax.toFixed(2)}</span></div>
-                      <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>Total</span><span className="text-primary">{currencySymbol}{total.toFixed(2)}</span></div>
+                      <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>New Total</span><span className="text-primary">{currencySymbol}{total.toFixed(2)}</span></div>
                     </div>
                   )}
                 </div>
