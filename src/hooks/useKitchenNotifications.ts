@@ -4,68 +4,58 @@ import { useToast } from '@/hooks/use-toast';
 
 export const useKitchenNotifications = (onNewOrder?: () => void) => {
   const { toast } = useToast();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const hasPlayedInitial = useRef(false);
-
-  // Create audio element for notification sound
-  useEffect(() => {
-    // Using a simple beep sound via Web Audio API
-    audioRef.current = new Audio();
-    audioRef.current.volume = 0.5;
-    
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, []);
+  const isInitialized = useRef(false);
 
   const playNotificationSound = useCallback(() => {
-    // Create an oscillator-based notification sound
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
+      
+      // First ding
+      const oscillator1 = audioContext.createOscillator();
+      const gainNode1 = audioContext.createGain();
+      oscillator1.connect(gainNode1);
+      gainNode1.connect(audioContext.destination);
+      
+      oscillator1.frequency.setValueAtTime(880, audioContext.currentTime);
+      oscillator1.frequency.setValueAtTime(1100, audioContext.currentTime + 0.1);
+      
+      gainNode1.gain.setValueAtTime(0.4, audioContext.currentTime);
+      gainNode1.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+      
+      oscillator1.start(audioContext.currentTime);
+      oscillator1.stop(audioContext.currentTime + 0.4);
 
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+      // Second ding after delay
+      const oscillator2 = audioContext.createOscillator();
+      const gainNode2 = audioContext.createGain();
+      oscillator2.connect(gainNode2);
+      gainNode2.connect(audioContext.destination);
+      
+      oscillator2.frequency.setValueAtTime(1100, audioContext.currentTime + 0.25);
+      oscillator2.frequency.setValueAtTime(1320, audioContext.currentTime + 0.35);
+      
+      gainNode2.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode2.gain.setValueAtTime(0.4, audioContext.currentTime + 0.25);
+      gainNode2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
+      
+      oscillator2.start(audioContext.currentTime + 0.25);
+      oscillator2.stop(audioContext.currentTime + 0.6);
 
-      // Create a pleasant "ding" sound
-      oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5 note
-      oscillator.frequency.setValueAtTime(1100, audioContext.currentTime + 0.1); // Higher pitch
-      oscillator.frequency.setValueAtTime(880, audioContext.currentTime + 0.2);
-
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.5);
-
-      // Play a second "ding" for emphasis
-      setTimeout(() => {
-        const osc2 = audioContext.createOscillator();
-        const gain2 = audioContext.createGain();
-        osc2.connect(gain2);
-        gain2.connect(audioContext.destination);
-        
-        osc2.frequency.setValueAtTime(1100, audioContext.currentTime);
-        gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-        
-        osc2.start(audioContext.currentTime);
-        osc2.stop(audioContext.currentTime + 0.3);
-      }, 200);
-
+      console.log('Kitchen notification sound played');
     } catch (error) {
-      console.log('Audio notification not supported:', error);
+      console.error('Audio notification error:', error);
     }
   }, []);
 
   useEffect(() => {
-    // Subscribe to new orders via Supabase realtime
+    // Mark as initialized after a delay to avoid initial load notifications
+    const initTimer = setTimeout(() => {
+      isInitialized.current = true;
+      console.log('Kitchen notifications initialized');
+    }, 3000);
+
     const channel = supabase
-      .channel('kitchen-orders')
+      .channel('kitchen-orders-notifications')
       .on(
         'postgres_changes',
         {
@@ -74,18 +64,15 @@ export const useKitchenNotifications = (onNewOrder?: () => void) => {
           table: 'orders'
         },
         (payload) => {
-          console.log('New order received:', payload);
+          console.log('New order INSERT received:', payload);
           
-          // Skip the initial load
-          if (!hasPlayedInitial.current) {
-            hasPlayedInitial.current = true;
+          if (!isInitialized.current) {
+            console.log('Skipping notification - not yet initialized');
             return;
           }
 
-          // Play notification sound
           playNotificationSound();
           
-          // Show toast notification
           const tableNumber = payload.new.table_number;
           toast({
             title: '🔔 New Order!',
@@ -95,7 +82,6 @@ export const useKitchenNotifications = (onNewOrder?: () => void) => {
             duration: 5000,
           });
 
-          // Callback for additional actions
           onNewOrder?.();
         }
       )
@@ -107,8 +93,12 @@ export const useKitchenNotifications = (onNewOrder?: () => void) => {
           table: 'orders'
         },
         (payload) => {
-          // Also notify when order status changes to pending (items added to existing order)
-          if (payload.new.status === 'pending' && payload.old.status !== 'pending') {
+          console.log('Order UPDATE received:', payload);
+          
+          if (!isInitialized.current) return;
+
+          // Notify when order status changes to pending (items added to existing order)
+          if (payload.new.status === 'pending' && payload.old?.status !== 'pending') {
             playNotificationSound();
             
             const tableNumber = payload.new.table_number;
@@ -124,14 +114,12 @@ export const useKitchenNotifications = (onNewOrder?: () => void) => {
           }
         }
       )
-      .subscribe();
-
-    // Mark as ready after a short delay to avoid initial notifications
-    setTimeout(() => {
-      hasPlayedInitial.current = true;
-    }, 2000);
+      .subscribe((status) => {
+        console.log('Kitchen notifications subscription status:', status);
+      });
 
     return () => {
+      clearTimeout(initTimer);
       supabase.removeChannel(channel);
     };
   }, [toast, playNotificationSound, onNewOrder]);
