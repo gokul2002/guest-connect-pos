@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
 import { UserRole } from '@/types/pos';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
@@ -36,6 +37,7 @@ export default function Login() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   const { signIn, signUp, user, role } = useAuth();
+  const { settings } = useRestaurantSettings();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -133,11 +135,21 @@ export default function Login() {
       <Card className="w-full max-w-md relative animate-fade-in glass-card">
         <CardHeader className="text-center pb-2 px-4 md:px-6">
           <div className="flex justify-center mb-3 md:mb-4">
-            <div className="flex h-14 w-14 md:h-16 md:w-16 items-center justify-center rounded-xl md:rounded-2xl gradient-primary glow-primary">
-              <Hotel className="h-7 w-7 md:h-8 md:w-8 text-primary-foreground" />
-            </div>
+            {settings?.restaurantLogoUrl ? (
+              <img
+                src={settings.restaurantLogoUrl}
+                alt="Restaurant Logo"
+                className="h-14 w-14 md:h-16 md:w-16 rounded-xl md:rounded-2xl object-contain"
+              />
+            ) : (
+              <div className="flex h-14 w-14 md:h-16 md:w-16 items-center justify-center rounded-xl md:rounded-2xl gradient-primary glow-primary">
+                <Hotel className="h-7 w-7 md:h-8 md:w-8 text-primary-foreground" />
+              </div>
+            )}
           </div>
-          <CardTitle className="font-display text-xl md:text-2xl">HotelPOS</CardTitle>
+          <CardTitle className="font-display text-xl md:text-2xl">
+            {settings?.restaurantName || 'HotelPOS'}
+          </CardTitle>
           <CardDescription className="text-sm">Sign in or create an account</CardDescription>
         </CardHeader>
         
