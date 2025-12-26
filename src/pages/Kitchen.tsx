@@ -1,4 +1,4 @@
-import { Clock, CheckCircle2, ChefHat, Timer, Volume2 } from 'lucide-react';
+import { Clock, CheckCircle2, ChefHat, Timer, Package } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -9,13 +9,20 @@ import { DbOrder } from '@/hooks/useOrders';
 import { useKitchenNotifications } from '@/hooks/useKitchenNotifications';
 
 export default function Kitchen() {
-  const { orders, ordersLoading, updateOrderStatus, refetchOrders } = usePOS();
+  const { orders, ordersLoading, updateOrderStatus, refetchOrders, orderSources } = usePOS();
   const { toast } = useToast();
   
   // Enable sound notifications for new orders
-  const { playNotificationSound } = useKitchenNotifications(() => {
+  useKitchenNotifications(() => {
     refetchOrders();
   });
+
+  // Helper to get order source name
+  const getOrderSourceName = (sourceId: string | null) => {
+    if (!sourceId) return null;
+    const source = orderSources.find(s => s.id === sourceId);
+    return source?.name || null;
+  };
 
   // Filter only today's orders for kitchen display
   const today = new Date();
@@ -40,70 +47,78 @@ export default function Kitchen() {
     }
   };
 
-  const OrderCard = ({ order, showActions = true }: { order: DbOrder; showActions?: boolean }) => (
-    <Card className="animate-scale-in">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="font-display text-lg flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary text-sm font-bold">
-              T{order.tableNumber}
-            </span>
-            Order
-          </CardTitle>
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <Timer className="h-4 w-4" />
-            <span className="text-sm">
-              {formatDistanceToNow(new Date(order.createdAt), { addSuffix: false })}
-            </span>
-          </div>
-        </div>
-        {order.customerName && (
-          <p className="text-sm text-muted-foreground">{order.customerName}</p>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="space-y-2">
-          {order.items.map(item => (
-            <div key={item.id} className="flex justify-between items-start p-2 rounded bg-muted/50">
-              <div>
-                <p className="font-medium">{item.menuItemName}</p>
-                {item.notes && (
-                  <p className="text-sm text-warning">Note: {item.notes}</p>
-                )}
-              </div>
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
-                {item.quantity}
+  const OrderCard = ({ order, showActions = true }: { order: DbOrder; showActions?: boolean }) => {
+    const sourceName = getOrderSourceName(order.orderSourceId);
+    const displayLabel = order.tableNumber ? `T${order.tableNumber}` : (sourceName || 'Order');
+    const isDelivery = !order.tableNumber && sourceName;
+
+    return (
+      <Card className="animate-scale-in">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="font-display text-lg flex items-center gap-2">
+              <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold ${
+                isDelivery ? 'bg-orange-500/10 text-orange-600' : 'bg-primary/10 text-primary'
+              }`}>
+                {isDelivery ? <Package className="h-4 w-4" /> : displayLabel}
+              </span>
+              {isDelivery ? sourceName : 'Order'}
+            </CardTitle>
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <Timer className="h-4 w-4" />
+              <span className="text-sm">
+                {formatDistanceToNow(new Date(order.createdAt), { addSuffix: false })}
               </span>
             </div>
-          ))}
-        </div>
-
-        {showActions && (
-          <div className="pt-2 flex gap-2">
-            {order.status === 'pending' && (
-              <Button 
-                className="flex-1"
-                onClick={() => handleStatusChange(order.id, 'preparing')}
-              >
-                <ChefHat className="h-4 w-4 mr-2" />
-                Start Preparing
-              </Button>
-            )}
-            {order.status === 'preparing' && (
-              <Button 
-                variant="success"
-                className="flex-1"
-                onClick={() => handleStatusChange(order.id, 'ready')}
-              >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Mark Ready
-              </Button>
-            )}
           </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+          {order.customerName && (
+            <p className="text-sm text-muted-foreground">{order.customerName}</p>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            {order.items.map(item => (
+              <div key={item.id} className="flex justify-between items-start p-2 rounded bg-muted/50">
+                <div>
+                  <p className="font-medium">{item.menuItemName}</p>
+                  {item.notes && (
+                    <p className="text-sm text-warning">Note: {item.notes}</p>
+                  )}
+                </div>
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                  {item.quantity}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {showActions && (
+            <div className="pt-2 flex gap-2">
+              {order.status === 'pending' && (
+                <Button 
+                  className="flex-1"
+                  onClick={() => handleStatusChange(order.id, 'preparing')}
+                >
+                  <ChefHat className="h-4 w-4 mr-2" />
+                  Start Preparing
+                </Button>
+              )}
+              {order.status === 'preparing' && (
+                <Button 
+                  variant="success"
+                  className="flex-1"
+                  onClick={() => handleStatusChange(order.id, 'ready')}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Mark Ready
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
 
   if (ordersLoading) {
     return (

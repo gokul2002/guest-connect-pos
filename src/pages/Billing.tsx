@@ -18,7 +18,7 @@ import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Billing() {
-  const { orders, ordersLoading, processPayment } = usePOS();
+  const { orders, ordersLoading, processPayment, orderSources } = usePOS();
   const { settings } = useRestaurantSettings();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,14 +26,23 @@ export default function Billing() {
   const [showReceipt, setShowReceipt] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
+  // Helper to get order source name
+  const getOrderSourceName = (sourceId: string | null) => {
+    if (!sourceId) return null;
+    const source = orderSources.find(s => s.id === sourceId);
+    return source?.name || null;
+  };
+
   const unpaidOrders = orders.filter(o => !o.isPaid && o.status !== 'cancelled');
   const paidOrders = orders.filter(o => o.isPaid);
 
-  const filteredUnpaid = unpaidOrders.filter(order =>
-    order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    order.tableNumber.toString().includes(searchQuery)
-  );
+  const filteredUnpaid = unpaidOrders.filter(order => {
+    const sourceName = getOrderSourceName(order.orderSourceId) || '';
+    return order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.tableNumber?.toString().includes(searchQuery) ||
+      sourceName.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   const handlePayment = async (orderId: string, method: 'cash' | 'card' | 'upi') => {
     const { error } = await processPayment(orderId, method);
@@ -162,66 +171,76 @@ export default function Billing() {
               <p className="text-center text-muted-foreground py-6 md:py-8 text-sm">No pending payments</p>
             ) : (
               <div className="space-y-3 md:space-y-4">
-                {filteredUnpaid.map((order, index) => (
-                  <div 
-                    key={order.id} 
-                    className="p-3 md:p-4 rounded-lg bg-muted/30 animate-slide-up"
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div className="flex items-center gap-2 md:gap-4">
-                        <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold text-sm md:text-base">
-                          T{order.tableNumber}
+                {filteredUnpaid.map((order, index) => {
+                  const sourceName = getOrderSourceName(order.orderSourceId);
+                  const isDelivery = !order.tableNumber && sourceName;
+                  const displayLabel = order.tableNumber ? `T${order.tableNumber}` : (sourceName ? sourceName.charAt(0) : 'O');
+                  
+                  return (
+                    <div 
+                      key={order.id} 
+                      className="p-3 md:p-4 rounded-lg bg-muted/30 animate-slide-up"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-2 md:gap-4">
+                          <div className={`flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-lg font-bold text-sm md:text-base ${
+                            isDelivery ? 'bg-orange-500/10 text-orange-600' : 'bg-primary/10 text-primary'
+                          }`}>
+                            {displayLabel}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm md:text-base">
+                              {order.tableNumber ? `Table ${order.tableNumber}` : sourceName || 'Order'}
+                            </p>
+                            <p className="text-xs md:text-sm text-muted-foreground">
+                              {order.customerName || 'Walk-in'} • {order.items.length} items
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-sm md:text-base">Table {order.tableNumber}</p>
-                          <p className="text-xs md:text-sm text-muted-foreground">
-                            {order.customerName || 'Walk-in'} • {order.items.length} items
-                          </p>
+                        <div className="text-right">
+                          <p className="text-lg md:text-xl font-bold text-primary">{currencySymbol}{order.total}</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg md:text-xl font-bold text-primary">{currencySymbol}{order.total}</p>
+                      
+                      <div className="flex gap-2 flex-wrap">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handlePayment(order.id, 'cash')}
+                          className="flex-1 min-w-[70px]"
+                        >
+                          <Banknote className="h-4 w-4 mr-1" />
+                          <span className="hidden sm:inline">Cash</span>
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handlePayment(order.id, 'card')}
+                          className="flex-1 min-w-[70px]"
+                        >
+                          <CreditCard className="h-4 w-4 mr-1" />
+                          <span className="hidden sm:inline">Card</span>
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handlePayment(order.id, 'upi')}
+                          className="flex-1 min-w-[70px]"
+                        >
+                          <Smartphone className="h-4 w-4 mr-1" />
+                          <span className="hidden sm:inline">UPI</span>
+                        </Button>
+                        <Button 
+                          size="sm"
+                          onClick={() => handlePrintReceipt(order)}
+                        >
+                          <Printer className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                    
-                    <div className="flex gap-2 flex-wrap">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handlePayment(order.id, 'cash')}
-                        className="flex-1 min-w-[70px]"
-                      >
-                        <Banknote className="h-4 w-4 mr-1" />
-                        <span className="hidden sm:inline">Cash</span>
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handlePayment(order.id, 'card')}
-                        className="flex-1 min-w-[70px]"
-                      >
-                        <CreditCard className="h-4 w-4 mr-1" />
-                        <span className="hidden sm:inline">Card</span>
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handlePayment(order.id, 'upi')}
-                        className="flex-1 min-w-[70px]"
-                      >
-                        <Smartphone className="h-4 w-4 mr-1" />
-                        <span className="hidden sm:inline">UPI</span>
-                      </Button>
-                      <Button 
-                        size="sm"
-                        onClick={() => handlePrintReceipt(order)}
-                      >
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -237,33 +256,38 @@ export default function Billing() {
               <p className="text-center text-muted-foreground py-6 md:py-8 text-sm">No completed orders yet</p>
             ) : (
               <div className="space-y-2 md:space-y-3">
-                {paidOrders.slice(0, 5).map(order => (
-                  <div 
-                    key={order.id}
-                    className="flex items-center justify-between p-2 md:p-3 rounded-lg bg-success/5 border border-success/20"
-                  >
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5 text-success" />
-                      <div>
-                        <p className="font-medium text-xs md:text-sm">Table {order.tableNumber}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {order.paymentMethod?.toUpperCase()}
-                        </p>
+                {paidOrders.slice(0, 5).map(order => {
+                  const sourceName = getOrderSourceName(order.orderSourceId);
+                  return (
+                    <div 
+                      key={order.id}
+                      className="flex items-center justify-between p-2 md:p-3 rounded-lg bg-success/5 border border-success/20"
+                    >
+                      <div className="flex items-center gap-2 md:gap-3">
+                        <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5 text-success" />
+                        <div>
+                          <p className="font-medium text-xs md:text-sm">
+                            {order.tableNumber ? `Table ${order.tableNumber}` : sourceName || 'Order'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {order.paymentMethod?.toUpperCase()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm md:text-base">{currencySymbol}{order.total}</span>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={() => handlePrintReceipt(order)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Printer className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm md:text-base">{currencySymbol}{order.total}</span>
-                      <Button 
-                        size="sm" 
-                        variant="ghost"
-                        onClick={() => handlePrintReceipt(order)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -293,8 +317,12 @@ export default function Billing() {
                   
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
-                      <span>Table:</span>
-                      <span>{selectedOrder.tableNumber}</span>
+                      <span>{selectedOrder.tableNumber ? 'Table:' : 'Source:'}</span>
+                      <span>
+                        {selectedOrder.tableNumber 
+                          ? selectedOrder.tableNumber 
+                          : getOrderSourceName(selectedOrder.orderSourceId) || 'N/A'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Date:</span>
