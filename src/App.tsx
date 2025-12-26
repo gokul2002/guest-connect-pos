@@ -14,6 +14,7 @@ import Staff from "./pages/Staff";
 import Menu from "./pages/Menu";
 import Billing from "./pages/Billing";
 import Settings from "./pages/Settings";
+import OrderHistory from "./pages/OrderHistory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -78,6 +79,11 @@ function AppRoutes() {
       <Route path="/settings" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <Settings />
+        </ProtectedRoute>
+      } />
+      <Route path="/order-history" element={
+        <ProtectedRoute allowedRoles={['admin', 'staff']}>
+          <OrderHistory />
         </ProtectedRoute>
       } />
       <Route path="*" element={<NotFound />} />
