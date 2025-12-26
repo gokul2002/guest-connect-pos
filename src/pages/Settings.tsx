@@ -1,32 +1,48 @@
-import { useState, useEffect } from 'react';
-import { Plus, Minus, Table2, Save, Store, Clock, DollarSign, Percent } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Minus, Table2, Save, Store, Clock, DollarSign, Percent, MapPin, Upload, Key, X, Image } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Settings() {
   const { tableCount, setTableCount } = usePOS();
   const { settings, loading, updateSettings } = useRestaurantSettings();
+  const { user } = useAuth();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [localTableCount, setLocalTableCount] = useState(tableCount);
   const [restaurantName, setRestaurantName] = useState('');
+  const [restaurantAddress, setRestaurantAddress] = useState('');
+  const [restaurantLogoUrl, setRestaurantLogoUrl] = useState<string | null>(null);
   const [taxPercentage, setTaxPercentage] = useState('');
   const [currencySymbol, setCurrencySymbol] = useState('');
   const [businessHoursOpen, setBusinessHoursOpen] = useState('');
   const [businessHoursClose, setBusinessHoursClose] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+
+  // Password change state
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Initialize form values when settings load
   useEffect(() => {
     if (settings) {
       setRestaurantName(settings.restaurantName);
+      setRestaurantAddress(settings.restaurantAddress);
+      setRestaurantLogoUrl(settings.restaurantLogoUrl);
       setTaxPercentage(String(settings.taxPercentage));
       setCurrencySymbol(settings.currencySymbol);
       setBusinessHoursOpen(settings.businessHoursOpen);
@@ -54,10 +70,71 @@ export default function Settings() {
     });
   };
 
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file',
+        description: 'Please upload an image file.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Please upload an image smaller than 2MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `logo-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('restaurant-logos')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('restaurant-logos')
+        .getPublicUrl(fileName);
+
+      setRestaurantLogoUrl(publicUrl);
+      toast({
+        title: 'Logo uploaded',
+        description: 'Remember to save your settings.',
+      });
+    } catch (err) {
+      toast({
+        title: 'Upload failed',
+        description: err instanceof Error ? err.message : 'Failed to upload logo',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setRestaurantLogoUrl(null);
+  };
+
   const handleSaveRestaurantSettings = async () => {
     setIsSaving(true);
     const { error } = await updateSettings({
       restaurantName,
+      restaurantAddress,
+      restaurantLogoUrl,
       taxPercentage: parseFloat(taxPercentage) || 0,
       currencySymbol,
       businessHoursOpen,
@@ -79,9 +156,74 @@ export default function Settings() {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: 'Password mismatch',
+        description: 'New password and confirm password do not match.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        title: 'Password too short',
+        description: 'Password must be at least 6 characters.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      // First verify old password by signing in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: oldPassword,
+      });
+
+      if (signInError) {
+        toast({
+          title: 'Incorrect password',
+          description: 'Your current password is incorrect.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: 'Password changed',
+        description: 'Your password has been updated successfully.',
+      });
+
+      // Clear form
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to change password',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const hasTableChanges = localTableCount !== tableCount;
   const hasRestaurantChanges = settings && (
     restaurantName !== settings.restaurantName ||
+    restaurantAddress !== settings.restaurantAddress ||
+    restaurantLogoUrl !== settings.restaurantLogoUrl ||
     taxPercentage !== String(settings.taxPercentage) ||
     currencySymbol !== settings.currencySymbol ||
     businessHoursOpen !== settings.businessHoursOpen ||
@@ -104,7 +246,7 @@ export default function Settings() {
               Restaurant Information
             </CardTitle>
             <CardDescription>
-              Basic information about your restaurant
+              Basic information about your restaurant (printed on receipts)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -115,6 +257,59 @@ export default function Settings() {
               </div>
             ) : (
               <>
+                {/* Logo Upload */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Image className="h-4 w-4" />
+                    Restaurant Logo
+                  </Label>
+                  <div className="flex items-center gap-4">
+                    {restaurantLogoUrl ? (
+                      <div className="relative">
+                        <img
+                          src={restaurantLogoUrl}
+                          alt="Restaurant Logo"
+                          className="h-20 w-20 object-contain rounded-lg border bg-muted"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-6 w-6"
+                          onClick={handleRemoveLogo}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center bg-muted/50">
+                        <Image className="h-8 w-8 text-muted-foreground/50" />
+                      </div>
+                    )}
+                    <div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingLogo}
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        {isUploadingLogo ? 'Uploading...' : 'Upload Logo'}
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Max 2MB, PNG or JPG
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="restaurant-name">Restaurant Name</Label>
                   <Input
@@ -123,6 +318,21 @@ export default function Settings() {
                     onChange={(e) => setRestaurantName(e.target.value)}
                     placeholder="Enter restaurant name"
                     className="h-11"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="restaurant-address" className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Address (for receipts)
+                  </Label>
+                  <Textarea
+                    id="restaurant-address"
+                    value={restaurantAddress}
+                    onChange={(e) => setRestaurantAddress(e.target.value)}
+                    placeholder="Enter full address for thermal printer receipts"
+                    rows={3}
+                    className="resize-none"
                   />
                 </div>
 
@@ -208,6 +418,74 @@ export default function Settings() {
                 )}
               </>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Password Change */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              Change Password
+            </CardTitle>
+            <CardDescription>
+              Update your account password or contact Zouis Corp admin for assistance
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="old-password">Current Password</Label>
+              <Input
+                id="old-password"
+                type="password"
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                placeholder="Enter current password"
+                className="h-11"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password (min 6 chars)"
+                className="h-11"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm New Password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                className="h-11"
+              />
+            </div>
+
+            <Button 
+              onClick={handleChangePassword}
+              disabled={!oldPassword || !newPassword || !confirmPassword || isChangingPassword}
+              className="w-full sm:w-auto"
+            >
+              <Key className="h-4 w-4 mr-2" />
+              {isChangingPassword ? 'Changing...' : 'Change Password'}
+            </Button>
+
+            <Separator />
+
+            <div className="p-4 rounded-lg bg-muted/50">
+              <p className="text-sm text-muted-foreground">
+                <strong>Forgot your password?</strong><br />
+                Contact Zouis Corp admin at <a href="mailto:admin@zouiscorp.com" className="text-primary hover:underline">admin@zouiscorp.com</a> for password reset assistance.
+              </p>
+            </div>
           </CardContent>
         </Card>
 

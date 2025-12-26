@@ -55,6 +55,8 @@ export interface DashboardStats {
 export interface RestaurantSettings {
   id: string;
   restaurantName: string;
+  restaurantAddress: string;
+  restaurantLogoUrl: string | null;
   taxPercentage: number;
   currencySymbol: string;
   businessHoursOpen: string;
