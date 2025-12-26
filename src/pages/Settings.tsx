@@ -1,21 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Minus, Table2, Save, Store, Clock, DollarSign, Percent, MapPin, Upload, Key, X, Image } from 'lucide-react';
+import { Plus, Minus, Table2, Save, Store, Clock, DollarSign, Percent, MapPin, Upload, Key, X, Image, Trash2, Edit2, ShoppingBag, Bike, Utensils, Truck, Package } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
+import { useOrderSources } from '@/hooks/useOrderSources';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function Settings() {
   const { tableCount, setTableCount } = usePOS();
   const { settings, loading, updateSettings } = useRestaurantSettings();
+  const { orderSources, addOrderSource, updateOrderSource, deleteOrderSource, loading: orderSourcesLoading } = useOrderSources();
   const { user } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -36,6 +46,19 @@ export default function Settings() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Order source state
+  const [newSourceName, setNewSourceName] = useState('');
+  const [newSourceIcon, setNewSourceIcon] = useState('package');
+  const [isAddingSource, setIsAddingSource] = useState(false);
+
+  const iconOptions = [
+    { value: 'shopping-bag', label: 'Bag', Icon: ShoppingBag },
+    { value: 'bike', label: 'Bike', Icon: Bike },
+    { value: 'utensils', label: 'Utensils', Icon: Utensils },
+    { value: 'truck', label: 'Truck', Icon: Truck },
+    { value: 'package', label: 'Package', Icon: Package },
+  ];
 
   // Initialize form values when settings load
   useEffect(() => {
@@ -574,6 +597,109 @@ export default function Settings() {
               <p className="text-xs text-orange-500">
                 You have unsaved changes
               </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Order Sources Management */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Order Sources (Delivery & Takeaway)
+            </CardTitle>
+            <CardDescription>
+              Manage delivery platforms and takeaway options displayed alongside tables
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {orderSourcesLoading ? (
+              <div className="h-20 bg-muted animate-pulse rounded" />
+            ) : (
+              <>
+                {/* Existing Sources */}
+                <div className="space-y-2">
+                  {orderSources.map((source) => {
+                    const IconComponent = iconOptions.find(o => o.value === source.icon)?.Icon || Package;
+                    return (
+                      <div key={source.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                        <IconComponent className="h-5 w-5 text-primary" />
+                        <span className="flex-1 font-medium">{source.name}</span>
+                        <Switch
+                          checked={source.isActive}
+                          onCheckedChange={(checked) => {
+                            updateOrderSource(source.id, { isActive: checked });
+                            toast({ title: checked ? 'Enabled' : 'Disabled', description: `${source.name} is now ${checked ? 'active' : 'inactive'}` });
+                          }}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={async () => {
+                            const { error } = await deleteOrderSource(source.id);
+                            if (error) {
+                              toast({ title: 'Error', description: error, variant: 'destructive' });
+                            } else {
+                              toast({ title: 'Deleted', description: `${source.name} has been removed` });
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <Separator />
+
+                {/* Add New Source */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Add New Order Source</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Source name (e.g., UberEats)"
+                      value={newSourceName}
+                      onChange={(e) => setNewSourceName(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Select value={newSourceIcon} onValueChange={setNewSourceIcon}>
+                      <SelectTrigger className="w-[100px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {iconOptions.map(({ value, label, Icon }) => (
+                          <SelectItem key={value} value={value}>
+                            <div className="flex items-center gap-2">
+                              <Icon className="h-4 w-4" />
+                              <span>{label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      disabled={!newSourceName.trim() || isAddingSource}
+                      onClick={async () => {
+                        setIsAddingSource(true);
+                        const { error } = await addOrderSource({ name: newSourceName, icon: newSourceIcon });
+                        setIsAddingSource(false);
+                        if (error) {
+                          toast({ title: 'Error', description: error, variant: 'destructive' });
+                        } else {
+                          toast({ title: 'Added', description: `${newSourceName} has been added` });
+                          setNewSourceName('');
+                          setNewSourceIcon('package');
+                        }
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add
+                    </Button>
+                  </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

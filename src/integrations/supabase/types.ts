@@ -130,6 +130,36 @@ export type Database = {
           },
         ]
       }
+      order_sources: {
+        Row: {
+          created_at: string
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           created_at: string
@@ -137,10 +167,11 @@ export type Database = {
           customer_name: string | null
           id: string
           is_paid: boolean
+          order_source_id: string | null
           payment_method: string | null
           status: string
           subtotal: number
-          table_number: number
+          table_number: number | null
           tax: number
           total: number
           updated_at: string
@@ -151,10 +182,11 @@ export type Database = {
           customer_name?: string | null
           id?: string
           is_paid?: boolean
+          order_source_id?: string | null
           payment_method?: string | null
           status?: string
           subtotal?: number
-          table_number: number
+          table_number?: number | null
           tax?: number
           total?: number
           updated_at?: string
@@ -165,10 +197,11 @@ export type Database = {
           customer_name?: string | null
           id?: string
           is_paid?: boolean
+          order_source_id?: string | null
           payment_method?: string | null
           status?: string
           subtotal?: number
-          table_number?: number
+          table_number?: number | null
           tax?: number
           total?: number
           updated_at?: string
@@ -179,6 +212,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_order_source_id_fkey"
+            columns: ["order_source_id"]
+            isOneToOne: false
+            referencedRelation: "order_sources"
             referencedColumns: ["id"]
           },
         ]

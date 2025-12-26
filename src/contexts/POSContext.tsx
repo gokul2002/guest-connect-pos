@@ -1,13 +1,15 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { useOrders, DbOrder } from '@/hooks/useOrders';
 import { useMenuItems, DbMenuItem, MenuCategory } from '@/hooks/useMenuItems';
+import { useOrderSources, OrderSource } from '@/hooks/useOrderSources';
 
 interface POSContextType {
   // Orders
   orders: DbOrder[];
   ordersLoading: boolean;
   addOrder: (orderData: {
-    tableNumber: number;
+    tableNumber?: number | null;
+    orderSourceId?: string | null;
     customerName?: string;
     subtotal: number;
     tax: number;
@@ -32,7 +34,13 @@ interface POSContextType {
   processPayment: (orderId: string, method: 'cash' | 'card' | 'upi') => Promise<{ error: string | null }>;
   getTableStatus: (tableNum: number) => 'free' | 'ordered' | 'preparing' | 'ready';
   getActiveOrderForTable: (tableNum: number) => DbOrder | null;
+  getActiveOrdersForSource: (sourceId: string) => DbOrder[];
   refetchOrders: () => Promise<void>;
+
+  // Order Sources
+  orderSources: OrderSource[];
+  activeOrderSources: OrderSource[];
+  orderSourcesLoading: boolean;
 
   // Menu Items
   menuItems: DbMenuItem[];
@@ -76,8 +84,15 @@ export function POSProvider({ children }: { children: ReactNode }) {
     processPayment,
     getTableStatus,
     getActiveOrderForTable,
+    getActiveOrdersForSource,
     refetch: refetchOrders,
   } = useOrders();
+
+  const {
+    orderSources,
+    activeOrderSources,
+    loading: orderSourcesLoading,
+  } = useOrderSources();
 
   const {
     menuItems,
@@ -103,7 +118,13 @@ export function POSProvider({ children }: { children: ReactNode }) {
         processPayment,
         getTableStatus,
         getActiveOrderForTable,
+        getActiveOrdersForSource,
         refetchOrders,
+
+        // Order Sources
+        orderSources,
+        activeOrderSources,
+        orderSourcesLoading,
 
         // Menu
         menuItems,

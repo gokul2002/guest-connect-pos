@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Minus, ShoppingCart, Trash2, Search, ArrowUpDown, ArrowLeft, Users, UtensilsCrossed, Clock, CheckCircle, ClipboardList } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Trash2, Search, ArrowUpDown, ArrowLeft, Users, UtensilsCrossed, Clock, CheckCircle, ClipboardList, ShoppingBag, Bike, Utensils, Truck, Package } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,14 +35,23 @@ const tableStatusConfig: Record<TableStatus, { label: string; color: string; bgC
   ready: { label: 'Ready', color: 'text-purple-600', bgColor: 'border-purple-500 bg-purple-500/20 hover:bg-purple-500/30', icon: CheckCircle },
 };
 
+const iconMap: Record<string, React.ElementType> = {
+  'shopping-bag': ShoppingBag,
+  'bike': Bike,
+  'utensils': Utensils,
+  'truck': Truck,
+  'package': Package,
+};
+
 export default function Orders() {
-  const { menuItems, categories, menuLoading, addOrder, addItemsToOrder, tableCount, getTableStatus, getActiveOrderForTable, orders } = usePOS();
+  const { menuItems, categories, menuLoading, addOrder, addItemsToOrder, tableCount, getTableStatus, getActiveOrderForTable, getActiveOrdersForSource, orders, activeOrderSources } = usePOS();
   const { user } = useAuth();
   const { toast } = useToast();
   const { settings } = useRestaurantSettings();
   
   const [step, setStep] = useState<'table' | 'menu'>('table');
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
+  const [selectedOrderSource, setSelectedOrderSource] = useState<{ id: string; name: string } | null>(null);
   const [existingOrderId, setExistingOrderId] = useState<string | null>(null);
   
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -128,6 +137,7 @@ export default function Orders() {
 
   const handleSelectTable = (tableNum: number) => {
     setSelectedTable(tableNum);
+    setSelectedOrderSource(null);
     const activeOrder = getActiveOrderForTable(tableNum);
     if (activeOrder) {
       setExistingOrderId(activeOrder.id);
@@ -139,9 +149,18 @@ export default function Orders() {
     setStep('menu');
   };
 
+  const handleSelectOrderSource = (source: { id: string; name: string }) => {
+    setSelectedOrderSource(source);
+    setSelectedTable(null);
+    setExistingOrderId(null);
+    setCustomerName('');
+    setStep('menu');
+  };
+
   const handleBackToTables = () => {
     setStep('table');
     setSelectedTable(null);
+    setSelectedOrderSource(null);
     setExistingOrderId(null);
     setCart([]);
     setCustomerName('');
@@ -153,8 +172,8 @@ export default function Orders() {
       toast({ title: 'Cart is empty', description: 'Please add items to the cart first.', variant: 'destructive' });
       return;
     }
-    if (!selectedTable) {
-      toast({ title: 'Table not selected', description: 'Please select a table first.', variant: 'destructive' });
+    if (!selectedTable && !selectedOrderSource) {
+      toast({ title: 'No selection', description: 'Please select a table or order source.', variant: 'destructive' });
       return;
     }
 
@@ -175,7 +194,8 @@ export default function Orders() {
     } else {
       // Create new order
       const result = await addOrder({
-        tableNumber: selectedTable,
+        tableNumber: selectedTable ?? null,
+        orderSourceId: selectedOrderSource?.id ?? null,
         customerName: customerName || undefined,
         subtotal,
         tax,
@@ -191,9 +211,10 @@ export default function Orders() {
       return;
     }
 
+    const orderTarget = selectedTable ? `Table ${selectedTable}` : selectedOrderSource?.name;
     toast({ 
       title: existingOrderId ? 'Items added!' : 'Order placed!', 
-      description: `${existingOrderId ? 'New items added to' : 'Order for'} Table ${selectedTable} has been sent to the kitchen.` 
+      description: `${existingOrderId ? 'New items added to' : 'Order for'} ${orderTarget} has been sent to the kitchen.` 
     });
     setCart([]);
     setCustomerName('');
@@ -201,6 +222,7 @@ export default function Orders() {
     setShowCart(false);
     setStep('table');
     setSelectedTable(null);
+    setSelectedOrderSource(null);
   };
 
   if (menuLoading) {
@@ -220,8 +242,8 @@ export default function Orders() {
         <div className="flex flex-col h-[calc(100vh-8rem)] md:h-auto animate-fade-in overflow-hidden">
           <div className="flex-shrink-0 space-y-4 pb-4">
             <div>
-              <h1 className="font-display text-xl md:text-3xl font-bold">Select Table</h1>
-              <p className="text-xs md:text-sm text-muted-foreground">Choose a table to start new order</p>
+              <h1 className="font-display text-xl md:text-3xl font-bold">Select Table or Order Type</h1>
+              <p className="text-xs md:text-sm text-muted-foreground">Choose a table for dine-in or an order source for delivery/takeaway</p>
             </div>
 
             <div className="flex flex-wrap gap-3 text-xs">
@@ -234,27 +256,65 @@ export default function Orders() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto pb-20 md:pb-4">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-              {Array.from({ length: tableCount }, (_, i) => i + 1).map((tableNum) => {
-                const status = getTableStatus(tableNum);
-                const config = tableStatusConfig[status];
-                const StatusIcon = config.icon;
+          <div className="flex-1 overflow-y-auto pb-20 md:pb-4 space-y-6">
+            {/* Order Sources (Delivery Platforms) */}
+            {activeOrderSources.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Delivery & Takeaway</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {activeOrderSources.map((source) => {
+                    const activeOrders = getActiveOrdersForSource(source.id);
+                    const hasActiveOrders = activeOrders.length > 0;
+                    const IconComponent = iconMap[source.icon] || Package;
 
-                return (
-                  <button
-                    key={tableNum}
-                    onClick={() => handleSelectTable(tableNum)}
-                    className={`aspect-square rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${config.bgColor}`}
-                  >
-                    <span className="text-2xl md:text-3xl font-bold">{tableNum}</span>
-                    <div className={`flex items-center gap-1 text-[10px] md:text-xs ${config.color}`}>
-                      <StatusIcon className="h-3 w-3" />
-                      <span>{config.label}</span>
-                    </div>
-                  </button>
-                );
-              })}
+                    return (
+                      <button
+                        key={source.id}
+                        onClick={() => handleSelectOrderSource({ id: source.id, name: source.name })}
+                        className={`relative aspect-[4/3] rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all duration-200 active:scale-95 ${
+                          hasActiveOrders 
+                            ? 'border-orange-500 bg-orange-500/10 hover:bg-orange-500/20' 
+                            : 'border-primary/30 bg-primary/5 hover:bg-primary/10'
+                        }`}
+                      >
+                        <IconComponent className={`h-8 w-8 ${hasActiveOrders ? 'text-orange-600' : 'text-primary'}`} />
+                        <span className="text-sm font-semibold">{source.name}</span>
+                        {hasActiveOrders && (
+                          <span className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                            {activeOrders.length}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Dine-in Tables */}
+            <div className="space-y-3">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Dine-in Tables</h2>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                {Array.from({ length: tableCount }, (_, i) => i + 1).map((tableNum) => {
+                  const status = getTableStatus(tableNum);
+                  const config = tableStatusConfig[status];
+                  const StatusIcon = config.icon;
+
+                  return (
+                    <button
+                      key={tableNum}
+                      onClick={() => handleSelectTable(tableNum)}
+                      className={`aspect-square rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all duration-200 active:scale-95 ${config.bgColor}`}
+                    >
+                      <span className="text-2xl md:text-3xl font-bold">{tableNum}</span>
+                      <div className={`flex items-center gap-1 text-[10px] md:text-xs ${config.color}`}>
+                        <StatusIcon className="h-3 w-3" />
+                        <span>{config.label}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -272,14 +332,27 @@ export default function Orders() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1">
-              <h1 className="font-display text-xl md:text-3xl font-bold">Table {selectedTable}</h1>
+              <h1 className="font-display text-xl md:text-3xl font-bold">
+                {selectedTable ? `Table ${selectedTable}` : selectedOrderSource?.name}
+              </h1>
               <p className="text-xs md:text-sm text-muted-foreground">
                 {existingOrderId ? 'Add more items to existing order' : 'Add items to new order'}
               </p>
             </div>
-            <div className={`px-3 py-1.5 rounded-full text-xs font-medium ${tableStatusConfig[getTableStatus(selectedTable!)].bgColor} ${tableStatusConfig[getTableStatus(selectedTable!)].color}`}>
-              {tableStatusConfig[getTableStatus(selectedTable!)].label}
-            </div>
+            {selectedTable && (
+              <div className={`px-3 py-1.5 rounded-full text-xs font-medium ${tableStatusConfig[getTableStatus(selectedTable)].bgColor} ${tableStatusConfig[getTableStatus(selectedTable)].color}`}>
+                {tableStatusConfig[getTableStatus(selectedTable)].label}
+              </div>
+            )}
+            {selectedOrderSource && (
+              <div className="px-3 py-1.5 rounded-full text-xs font-medium border-primary/30 bg-primary/10 text-primary">
+                {(() => {
+                  const IconComponent = iconMap[activeOrderSources.find(s => s.id === selectedOrderSource.id)?.icon || 'package'] || Package;
+                  return <IconComponent className="h-4 w-4 inline mr-1" />;
+                })()}
+                New Order
+              </div>
+            )}
           </div>
 
           <div className="relative">
