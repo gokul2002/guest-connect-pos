@@ -261,6 +261,7 @@ export type Database = {
           restaurant_address: string | null
           restaurant_logo_url: string | null
           restaurant_name: string
+          table_count: number
           tax_percentage: number
           updated_at: string
         }
@@ -274,6 +275,7 @@ export type Database = {
           restaurant_address?: string | null
           restaurant_logo_url?: string | null
           restaurant_name?: string
+          table_count?: number
           tax_percentage?: number
           updated_at?: string
         }
@@ -287,6 +289,7 @@ export type Database = {
           restaurant_address?: string | null
           restaurant_logo_url?: string | null
           restaurant_name?: string
+          table_count?: number
           tax_percentage?: number
           updated_at?: string
         }

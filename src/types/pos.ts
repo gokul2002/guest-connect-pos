@@ -16,40 +16,32 @@ export interface MenuItem {
   price: number;
   category: string;
   description?: string;
-  image?: string;
   available: boolean;
+  image?: string;
 }
 
 export interface OrderItem {
   id: string;
-  menuItem: MenuItem;
+  menuItemId: string;
+  menuItemName: string;
+  menuItemPrice: number;
   quantity: number;
   notes?: string;
 }
 
-export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'served' | 'cancelled';
-
 export interface Order {
   id: string;
-  items: OrderItem[];
-  tableNumber: number;
-  status: OrderStatus;
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: string;
+  tableNumber?: number;
   customerName?: string;
-  total: number;
-  tax: number;
+  items: OrderItem[];
+  status: 'pending' | 'preparing' | 'ready' | 'served';
   subtotal: number;
-  paymentMethod?: 'cash' | 'card' | 'upi';
+  tax: number;
+  total: number;
   isPaid: boolean;
-}
-
-export interface DashboardStats {
-  todaySales: number;
-  totalOrders: number;
-  pendingOrders: number;
-  averageOrderValue: number;
+  paymentMethod?: 'cash' | 'card' | 'upi';
+  createdAt: Date;
+  createdBy?: string;
 }
 
 export interface RestaurantSettings {
@@ -62,4 +54,5 @@ export interface RestaurantSettings {
   businessHoursOpen: string;
   businessHoursClose: string;
   kitchenEnabled: boolean;
+  tableCount: number;
 }
