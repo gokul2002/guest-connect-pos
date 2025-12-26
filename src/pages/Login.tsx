@@ -63,25 +63,25 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-primary/5 blur-3xl" />
+        <div className="absolute -top-40 -right-40 h-60 md:h-80 w-60 md:w-80 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 h-60 md:h-80 w-60 md:w-80 rounded-full bg-primary/5 blur-3xl" />
       </div>
       
       <Card className="w-full max-w-md relative animate-fade-in glass-card">
-        <CardHeader className="text-center pb-2">
-          <div className="flex justify-center mb-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl gradient-primary glow-primary">
-              <Hotel className="h-8 w-8 text-primary-foreground" />
+        <CardHeader className="text-center pb-2 px-4 md:px-6">
+          <div className="flex justify-center mb-3 md:mb-4">
+            <div className="flex h-14 w-14 md:h-16 md:w-16 items-center justify-center rounded-xl md:rounded-2xl gradient-primary glow-primary">
+              <Hotel className="h-7 w-7 md:h-8 md:w-8 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="font-display text-2xl">HotelPOS</CardTitle>
-          <CardDescription>Sign in to access the management system</CardDescription>
+          <CardTitle className="font-display text-xl md:text-2xl">HotelPOS</CardTitle>
+          <CardDescription className="text-sm">Sign in to access the system</CardDescription>
         </CardHeader>
         
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 md:space-y-6 px-4 md:px-6">
           {/* Role Selection */}
-          <div className="space-y-3">
-            <Label>Select Role</Label>
+          <div className="space-y-2 md:space-y-3">
+            <Label className="text-sm">Select Role</Label>
             <div className="grid grid-cols-3 gap-2">
               {roleOptions.map((option) => (
                 <Button
@@ -89,18 +89,18 @@ export default function Login() {
                   type="button"
                   variant={selectedRole === option.role ? 'pos-active' : 'pos'}
                   onClick={() => handleQuickLogin(option.role)}
-                  className="h-auto py-3"
+                  className="h-auto py-2.5 md:py-3"
                 >
-                  <option.icon className="h-5 w-5" />
+                  <option.icon className="h-4 w-4 md:h-5 md:w-5" />
                   <span className="text-xs font-medium">{option.label}</span>
                 </Button>
               ))}
             </div>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-3 md:space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-sm">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -108,23 +108,24 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="h-10 md:h-11"
               />
             </div>
 
-            <Button type="submit" className="w-full" size="lg">
+            <Button type="submit" className="w-full h-10 md:h-11" size="lg">
               Sign In
             </Button>
           </form>
 
-          <div className="text-center text-sm text-muted-foreground">
+          <div className="text-center text-xs md:text-sm text-muted-foreground">
             <p>Quick login emails:</p>
-            <p className="text-xs mt-1 space-x-2">
-              <span className="text-primary">admin@hotel.com</span>
+            <div className="flex flex-wrap justify-center gap-1 mt-1">
+              <span className="text-primary text-xs">admin@hotel.com</span>
               <span>•</span>
-              <span className="text-primary">john@hotel.com</span>
+              <span className="text-primary text-xs">john@hotel.com</span>
               <span>•</span>
-              <span className="text-primary">ramesh@hotel.com</span>
-            </p>
+              <span className="text-primary text-xs">ramesh@hotel.com</span>
+            </div>
           </div>
         </CardContent>
       </Card>
