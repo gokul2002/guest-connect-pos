@@ -302,83 +302,102 @@ export default function Billing() {
             
             {selectedOrder && (
               <>
-                <div ref={receiptRef} className="bg-background p-4 rounded-lg border font-mono text-sm">
-                  <div className="header text-center mb-4">
+                <div ref={receiptRef} className="bg-white text-black p-4 rounded-lg border" style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: '12px', maxWidth: '280px', margin: '0 auto' }}>
+                  {/* Header */}
+                  <div className="text-center mb-2">
                     {settings?.restaurantLogoUrl && (
-                      <img src={settings.restaurantLogoUrl} alt="Logo" className="mx-auto mb-2" style={{ maxWidth: '80px' }} />
+                      <img src={settings.restaurantLogoUrl} alt="Logo" className="mx-auto mb-2" style={{ maxWidth: '60px' }} />
                     )}
-                    <h1 className="text-xl font-bold">{settings?.restaurantName || 'HotelPOS'}</h1>
+                    <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{settings?.restaurantName || 'RESTAURANT'}</div>
                     {settings?.restaurantAddress && (
-                      <p className="text-muted-foreground text-xs whitespace-pre-line">{settings.restaurantAddress}</p>
+                      <div style={{ fontSize: '10px', lineHeight: '1.3' }}>{settings.restaurantAddress}</div>
                     )}
                   </div>
                   
-                  <div className="border-t border-dashed my-3" />
-                  
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between">
-                      <span>{selectedOrder.tableNumber ? 'Table:' : 'Source:'}</span>
-                      <span>
-                        {selectedOrder.tableNumber 
-                          ? selectedOrder.tableNumber 
-                          : getOrderSourceName(selectedOrder.orderSourceId) || 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Date:</span>
-                      <span>{format(new Date(selectedOrder.createdAt), 'dd/MM/yyyy HH:mm')}</span>
-                    </div>
-                    {selectedOrder.customerName && (
-                      <div className="flex justify-between">
-                        <span>Customer:</span>
-                        <span>{selectedOrder.customerName}</span>
-                      </div>
-                    )}
+                  {/* Bill Info */}
+                  <div style={{ fontSize: '10px', display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                    <span>Bill No: {selectedOrder.id.slice(-6).toUpperCase()}</span>
+                    <span>Date: {format(new Date(selectedOrder.createdAt), 'dd - MMM - yyyy')}</span>
                   </div>
                   
-                  <div className="border-t border-dashed my-3" />
+                  {/* Dashed Divider */}
+                  <div style={{ borderTop: '1px dashed #000', margin: '8px 0' }} />
                   
-                  <div className="space-y-2">
-                    {selectedOrder.items.map(item => (
-                      <div key={item.id} className="flex justify-between text-xs">
-                        <span>{item.quantity}x {item.menuItemName}</span>
-                        <span>{currencySymbol}{item.menuItemPrice * item.quantity}</span>
-                      </div>
-                    ))}
+                  {/* Items Header */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                    <thead>
+                      <tr style={{ fontWeight: 'bold' }}>
+                        <th style={{ textAlign: 'left', width: '15%', padding: '2px 0' }}>SN</th>
+                        <th style={{ textAlign: 'left', width: '35%', padding: '2px 0' }}>Item</th>
+                        <th style={{ textAlign: 'center', width: '15%', padding: '2px 0' }}>Qty</th>
+                        <th style={{ textAlign: 'right', width: '15%', padding: '2px 0' }}>Price</th>
+                        <th style={{ textAlign: 'right', width: '20%', padding: '2px 0' }}>Amt</th>
+                      </tr>
+                    </thead>
+                  </table>
+                  
+                  {/* Dashed Divider */}
+                  <div style={{ borderTop: '1px dashed #000', margin: '4px 0' }} />
+                  
+                  {/* Items */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                    <tbody>
+                      {selectedOrder.items.map((item, index) => (
+                        <tr key={item.id}>
+                          <td style={{ textAlign: 'left', width: '15%', padding: '3px 0', verticalAlign: 'top' }}>{index + 1}</td>
+                          <td style={{ textAlign: 'left', width: '35%', padding: '3px 0', verticalAlign: 'top' }}>{item.menuItemName}</td>
+                          <td style={{ textAlign: 'center', width: '15%', padding: '3px 0', verticalAlign: 'top' }}>{item.quantity}</td>
+                          <td style={{ textAlign: 'right', width: '15%', padding: '3px 0', verticalAlign: 'top' }}>{item.menuItemPrice.toFixed(2)}</td>
+                          <td style={{ textAlign: 'right', width: '20%', padding: '3px 0', verticalAlign: 'top' }}>{(item.menuItemPrice * item.quantity).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  
+                  {/* Dashed Divider */}
+                  <div style={{ borderTop: '1px dashed #000', margin: '8px 0' }} />
+                  
+                  {/* Subtotal */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '2px 0' }}>
+                    <span>Subtotal</span>
+                    <span>{selectedOrder.items.reduce((sum, item) => sum + item.quantity, 0)}</span>
+                    <span style={{ minWidth: '80px', textAlign: 'right' }}>{currencySymbol} {selectedOrder.subtotal.toFixed(2)}</span>
                   </div>
                   
-                  <div className="border-t border-dashed my-3" />
+                  {/* Dashed Divider */}
+                  <div style={{ borderTop: '1px dashed #000', margin: '4px 0' }} />
                   
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between">
-                      <span>Subtotal (excl. tax):</span>
-                      <span>{currencySymbol}{selectedOrder.subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Tax ({settings?.taxPercentage || 10}% incl.):</span>
-                      <span>{currencySymbol}{selectedOrder.tax.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-base pt-2">
-                      <span>TOTAL:</span>
-                      <span>{currencySymbol}{selectedOrder.total.toFixed(2)}</span>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground text-center pt-1">Prices are inclusive of tax</p>
+                  {/* Tax */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '11px', padding: '2px 0' }}>
+                    <span style={{ marginRight: '20px' }}>Tax ({settings?.taxPercentage || 10}%)</span>
+                    <span style={{ minWidth: '60px', textAlign: 'right' }}>{selectedOrder.tax.toFixed(2)}</span>
                   </div>
                   
+                  {/* Double Dashed Divider */}
+                  <div style={{ borderTop: '2px dashed #000', margin: '8px 0' }} />
+                  
+                  {/* Total */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold', padding: '4px 0' }}>
+                    <span>TOTAL</span>
+                    <span>{currencySymbol} {selectedOrder.total.toFixed(2)}</span>
+                  </div>
+                  
+                  {/* Payment Method */}
                   {selectedOrder.paymentMethod && (
-                    <>
-                      <div className="border-t border-dashed my-3" />
-                      <div className="text-center text-xs">
-                        <p>Paid via {selectedOrder.paymentMethod.toUpperCase()}</p>
-                      </div>
-                    </>
+                    <div style={{ textAlign: 'center', fontSize: '10px', marginTop: '8px', padding: '4px', background: '#f0f0f0' }}>
+                      Paid via {selectedOrder.paymentMethod.toUpperCase()}
+                    </div>
                   )}
                   
-                  <div className="border-t border-dashed my-3" />
+                  {/* Dashed Divider */}
+                  <div style={{ borderTop: '1px dashed #000', margin: '12px 0 8px 0' }} />
                   
-                  <div className="footer text-center text-xs text-muted-foreground">
-                    <p>Thank you for dining with us!</p>
-                    <p>Please visit again</p>
+                  {/* Footer */}
+                  <div style={{ textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }}>
+                    Thank You
+                  </div>
+                  <div style={{ textAlign: 'center', fontSize: '10px', marginTop: '4px', color: '#666' }}>
+                    Please Visit Again
                   </div>
                 </div>
                 
