@@ -1,13 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Clock, CheckCircle2, ChefHat, AlertCircle, Search, XCircle } from 'lucide-react';
+import { Clock, CheckCircle2, ChefHat, AlertCircle, Search, XCircle, Calendar, Filter, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, isToday } from 'date-fns';
 
 interface OrderItem {
   id: string;
@@ -37,12 +52,20 @@ const statusConfig = {
   cancelled: { label: 'Cancelled', icon: XCircle, color: 'bg-destructive/10 text-destructive border-destructive/30' },
 };
 
+const ITEMS_PER_PAGE = 12;
+
 export default function OrderHistory() {
   const { settings } = useRestaurantSettings();
+  const { role } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('active');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+
+  const isAdmin = role === 'admin';
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -117,11 +140,30 @@ export default function OrderHistory() {
 
   const currencySymbol = settings?.currencySymbol || '₹';
 
-  const activeOrders = orders.filter(o => 
+  // Filter orders based on role - staff/chef only see today's orders
+  const roleFilteredOrders = isAdmin 
+    ? orders 
+    : orders.filter(o => isToday(o.createdAt));
+
+  // Apply date filter (admin only)
+  const dateFilteredOrders = dateFilter && isAdmin
+    ? roleFilteredOrders.filter(o => {
+        const orderDate = startOfDay(o.createdAt);
+        const filterDate = startOfDay(dateFilter);
+        return orderDate.getTime() === filterDate.getTime();
+      })
+    : roleFilteredOrders;
+
+  // Apply status filter (admin only)
+  const statusFilteredOrders = statusFilter !== 'all' && isAdmin
+    ? dateFilteredOrders.filter(o => o.status === statusFilter)
+    : dateFilteredOrders;
+
+  const activeOrders = statusFilteredOrders.filter(o => 
     ['pending', 'preparing', 'ready'].includes(o.status)
   );
   
-  const completedOrders = orders.filter(o => 
+  const completedOrders = statusFilteredOrders.filter(o => 
     ['served', 'cancelled'].includes(o.status)
   );
 
@@ -132,6 +174,22 @@ export default function OrderHistory() {
       order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
+  };
+
+  const getDisplayOrders = (orderList: Order[]) => {
+    const filtered = filterOrders(orderList);
+    return isAdmin ? filtered.slice(0, visibleCount) : filtered;
+  };
+
+  const handleLoadMore = () => {
+    setVisibleCount(prev => prev + ITEMS_PER_PAGE);
+  };
+
+  const clearFilters = () => {
+    setDateFilter(undefined);
+    setStatusFilter('all');
+    setSearchQuery('');
+    setVisibleCount(ITEMS_PER_PAGE);
   };
 
   const OrderCard = ({ order }: { order: Order }) => {
@@ -211,7 +269,9 @@ export default function OrderHistory() {
       <div className="space-y-4 md:space-y-6 animate-fade-in">
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-bold">Order History</h1>
-          <p className="text-sm text-muted-foreground">Track all orders and their status</p>
+          <p className="text-sm text-muted-foreground">
+            {isAdmin ? 'View all orders with filters' : "Today's orders"}
+          </p>
         </div>
 
         {/* Stats */}
@@ -219,7 +279,7 @@ export default function OrderHistory() {
           <Card>
             <CardContent className="p-3 md:p-4">
               <p className="text-xl md:text-2xl font-bold text-warning">
-                {orders.filter(o => o.status === 'pending').length}
+                {statusFilteredOrders.filter(o => o.status === 'pending').length}
               </p>
               <p className="text-xs md:text-sm text-muted-foreground">Pending</p>
             </CardContent>
@@ -227,7 +287,7 @@ export default function OrderHistory() {
           <Card>
             <CardContent className="p-3 md:p-4">
               <p className="text-xl md:text-2xl font-bold text-primary">
-                {orders.filter(o => o.status === 'preparing').length}
+                {statusFilteredOrders.filter(o => o.status === 'preparing').length}
               </p>
               <p className="text-xs md:text-sm text-muted-foreground">Preparing</p>
             </CardContent>
@@ -235,7 +295,7 @@ export default function OrderHistory() {
           <Card className="border-success/30 bg-success/5">
             <CardContent className="p-3 md:p-4">
               <p className="text-xl md:text-2xl font-bold text-success">
-                {orders.filter(o => o.status === 'ready').length}
+                {statusFilteredOrders.filter(o => o.status === 'ready').length}
               </p>
               <p className="text-xs md:text-sm text-muted-foreground">Ready</p>
             </CardContent>
@@ -243,22 +303,71 @@ export default function OrderHistory() {
           <Card>
             <CardContent className="p-3 md:p-4">
               <p className="text-xl md:text-2xl font-bold">
-                {orders.filter(o => o.status === 'served').length}
+                {statusFilteredOrders.filter(o => o.status === 'served').length}
               </p>
               <p className="text-xs md:text-sm text-muted-foreground">Served</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by table, customer, or order ID..."
-            className="pl-10 h-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        {/* Search & Filters */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by table, customer, or order ID..."
+              className="pl-10 h-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          {isAdmin && (
+            <div className="flex gap-2">
+              {/* Date Filter */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-10 gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <span className="hidden sm:inline">
+                      {dateFilter ? format(dateFilter, 'dd MMM yyyy') : 'Date'}
+                    </span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateFilter}
+                    onSelect={setDateFilter}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+
+              {/* Status Filter */}
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-10 w-[130px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="preparing">Preparing</SelectItem>
+                  <SelectItem value="ready">Ready</SelectItem>
+                  <SelectItem value="served">Served</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {(dateFilter || statusFilter !== 'all') && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-10">
+                  Clear
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Tabs */}
@@ -280,11 +389,20 @@ export default function OrderHistory() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {filterOrders(activeOrders).map(order => (
-                  <OrderCard key={order.id} order={order} />
-                ))}
-              </div>
+              <>
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                  {getDisplayOrders(activeOrders).map(order => (
+                    <OrderCard key={order.id} order={order} />
+                  ))}
+                </div>
+                {isAdmin && filterOrders(activeOrders).length > visibleCount && (
+                  <div className="mt-4 text-center">
+                    <Button variant="outline" onClick={handleLoadMore}>
+                      Load More ({filterOrders(activeOrders).length - visibleCount} remaining)
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </TabsContent>
 
@@ -296,11 +414,20 @@ export default function OrderHistory() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {filterOrders(completedOrders).map(order => (
-                  <OrderCard key={order.id} order={order} />
-                ))}
-              </div>
+              <>
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                  {getDisplayOrders(completedOrders).map(order => (
+                    <OrderCard key={order.id} order={order} />
+                  ))}
+                </div>
+                {isAdmin && filterOrders(completedOrders).length > visibleCount && (
+                  <div className="mt-4 text-center">
+                    <Button variant="outline" onClick={handleLoadMore}>
+                      Load More ({filterOrders(completedOrders).length - visibleCount} remaining)
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </TabsContent>
         </Tabs>

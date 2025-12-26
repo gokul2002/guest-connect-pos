@@ -19,7 +19,18 @@ export default function Dashboard() {
   const { settings } = useRestaurantSettings();
   
   const currencySymbol = settings?.currencySymbol || '₹';
-  const recentOrders = orders.slice(0, 5);
+  
+  // Filter only today's orders for recent orders display
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const todayOrders = orders.filter(o => {
+    const orderDate = new Date(o.createdAt);
+    orderDate.setHours(0, 0, 0, 0);
+    return orderDate.getTime() === today.getTime();
+  });
+  
+  const recentOrders = todayOrders.slice(0, 5);
 
   const dashboardStats = [
     {

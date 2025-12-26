@@ -11,9 +11,19 @@ export default function Kitchen() {
   const { orders, ordersLoading, updateOrderStatus } = usePOS();
   const { toast } = useToast();
 
-  const pendingOrders = orders.filter(o => o.status === 'pending');
-  const preparingOrders = orders.filter(o => o.status === 'preparing');
-  const readyOrders = orders.filter(o => o.status === 'ready');
+  // Filter only today's orders for kitchen display
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const todayOrders = orders.filter(o => {
+    const orderDate = new Date(o.createdAt);
+    orderDate.setHours(0, 0, 0, 0);
+    return orderDate.getTime() === today.getTime();
+  });
+
+  const pendingOrders = todayOrders.filter(o => o.status === 'pending');
+  const preparingOrders = todayOrders.filter(o => o.status === 'preparing');
+  const readyOrders = todayOrders.filter(o => o.status === 'ready');
 
   const handleStatusChange = async (orderId: string, newStatus: DbOrder['status']) => {
     const { error } = await updateOrderStatus(orderId, newStatus);
