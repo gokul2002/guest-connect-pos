@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
 
 const adminNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
@@ -32,18 +33,31 @@ const chefNavItems = [
 
 export function BottomNav() {
   const { role } = useAuth();
+  const { settings } = useRestaurantSettings();
+  const kitchenEnabled = settings?.kitchenEnabled !== false;
 
   const getNavItems = () => {
+    let items: typeof adminNavItems = [];
     switch (role) {
       case 'admin':
-        return adminNavItems;
+        items = adminNavItems;
+        break;
       case 'staff':
-        return staffNavItems;
+        items = staffNavItems;
+        break;
       case 'chef':
-        return chefNavItems;
+        items = chefNavItems;
+        break;
       default:
-        return [];
+        items = [];
     }
+    
+    // Filter out kitchen if disabled
+    if (!kitchenEnabled) {
+      items = items.filter(item => item.to !== '/kitchen');
+    }
+    
+    return items;
   };
 
   const navItems = getNavItems();

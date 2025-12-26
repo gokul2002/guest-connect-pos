@@ -49,17 +49,30 @@ export function Sidebar() {
     navigate('/login');
   };
 
+  const kitchenEnabled = settings?.kitchenEnabled !== false;
+
   const getNavItems = () => {
+    let items: typeof adminNavItems = [];
     switch (role) {
       case 'admin':
-        return adminNavItems;
+        items = adminNavItems;
+        break;
       case 'staff':
-        return staffNavItems;
+        items = staffNavItems;
+        break;
       case 'chef':
-        return chefNavItems;
+        items = chefNavItems;
+        break;
       default:
-        return [];
+        items = [];
     }
+    
+    // Filter out kitchen if disabled
+    if (!kitchenEnabled) {
+      items = items.filter(item => item.to !== '/kitchen');
+    }
+    
+    return items;
   };
 
   const navItems = getNavItems();
