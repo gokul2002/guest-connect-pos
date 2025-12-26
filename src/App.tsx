@@ -12,6 +12,7 @@ import Kitchen from "./pages/Kitchen";
 import Staff from "./pages/Staff";
 import Menu from "./pages/Menu";
 import Billing from "./pages/Billing";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,6 +64,11 @@ function AppRoutes() {
       <Route path="/billing" element={
         <ProtectedRoute allowedRoles={['admin', 'staff']}>
           <Billing />
+        </ProtectedRoute>
+      } />
+      <Route path="/settings" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <Settings />
         </ProtectedRoute>
       } />
       <Route path="*" element={<NotFound />} />

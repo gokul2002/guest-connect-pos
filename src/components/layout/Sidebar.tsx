@@ -7,7 +7,8 @@ import {
   UtensilsCrossed,
   Receipt,
   LogOut,
-  Hotel
+  Hotel,
+  Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePOS } from '@/contexts/POSContext';
@@ -20,6 +21,7 @@ const adminNavItems = [
   { to: '/menu', icon: UtensilsCrossed, label: 'Menu' },
   { to: '/staff', icon: Users, label: 'Staff' },
   { to: '/billing', icon: Receipt, label: 'Billing' },
+  { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 const staffNavItems = [
