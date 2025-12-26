@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Minus, Table2, Save, Store, Clock, DollarSign, Percent, MapPin, Upload, Key, X, Image, Trash2, Edit2, ShoppingBag, Bike, Utensils, Truck, Package } from 'lucide-react';
+import { Plus, Minus, Table2, Save, Store, Clock, DollarSign, Percent, MapPin, Upload, Key, X, Image, Trash2, Edit2, ShoppingBag, Bike, Utensils, Truck, Package, ChefHat } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,8 +38,10 @@ export default function Settings() {
   const [currencySymbol, setCurrencySymbol] = useState('');
   const [businessHoursOpen, setBusinessHoursOpen] = useState('');
   const [businessHoursClose, setBusinessHoursClose] = useState('');
+  const [kitchenEnabled, setKitchenEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isSavingKitchen, setIsSavingKitchen] = useState(false);
 
   // Password change state
   const [oldPassword, setOldPassword] = useState('');
@@ -70,8 +72,32 @@ export default function Settings() {
       setCurrencySymbol(settings.currencySymbol);
       setBusinessHoursOpen(settings.businessHoursOpen);
       setBusinessHoursClose(settings.businessHoursClose);
+      setKitchenEnabled(settings.kitchenEnabled);
     }
   }, [settings]);
+
+  const handleToggleKitchen = async () => {
+    setIsSavingKitchen(true);
+    const newValue = !kitchenEnabled;
+    const { error } = await updateSettings({ kitchenEnabled: newValue });
+    setIsSavingKitchen(false);
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: error,
+        variant: 'destructive',
+      });
+    } else {
+      setKitchenEnabled(newValue);
+      toast({
+        title: newValue ? 'Kitchen Enabled' : 'Kitchen Disabled',
+        description: newValue 
+          ? 'Orders will go through kitchen workflow (pending → preparing → ready).' 
+          : 'Orders will skip kitchen and be ready for billing immediately.',
+      });
+    }
+  };
 
   const handleIncrement = () => {
     if (localTableCount < 50) {
@@ -597,6 +623,43 @@ export default function Settings() {
               <p className="text-xs text-orange-500">
                 You have unsaved changes
               </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Kitchen Panel Toggle */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ChefHat className="h-5 w-5" />
+              Kitchen Panel
+            </CardTitle>
+            <CardDescription>
+              Enable or disable the kitchen workflow for orders
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+              <div className="space-y-1">
+                <p className="font-medium">Kitchen Workflow</p>
+                <p className="text-sm text-muted-foreground">
+                  {kitchenEnabled 
+                    ? 'Orders go through kitchen (pending → preparing → ready)' 
+                    : 'Orders skip kitchen and are ready for billing immediately'}
+                </p>
+              </div>
+              <Switch
+                checked={kitchenEnabled}
+                onCheckedChange={handleToggleKitchen}
+                disabled={isSavingKitchen}
+              />
+            </div>
+            {!kitchenEnabled && (
+              <div className="p-3 rounded-lg bg-warning/10 border border-warning/30">
+                <p className="text-sm text-warning">
+                  <strong>Kitchen is disabled.</strong> All new orders will skip the kitchen workflow and go directly to "ready" status for billing.
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>

@@ -61,4 +61,5 @@ export interface RestaurantSettings {
   currencySymbol: string;
   businessHoursOpen: string;
   businessHoursClose: string;
+  kitchenEnabled: boolean;
 }
