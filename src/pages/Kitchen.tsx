@@ -1,4 +1,4 @@
-import { Clock, CheckCircle2, ChefHat, Timer } from 'lucide-react';
+import { Clock, CheckCircle2, ChefHat, Timer, Volume2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -6,10 +6,16 @@ import { usePOS } from '@/contexts/POSContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { DbOrder } from '@/hooks/useOrders';
+import { useKitchenNotifications } from '@/hooks/useKitchenNotifications';
 
 export default function Kitchen() {
-  const { orders, ordersLoading, updateOrderStatus } = usePOS();
+  const { orders, ordersLoading, updateOrderStatus, refetchOrders } = usePOS();
   const { toast } = useToast();
+  
+  // Enable sound notifications for new orders
+  const { playNotificationSound } = useKitchenNotifications(() => {
+    refetchOrders();
+  });
 
   // Filter only today's orders for kitchen display
   const today = new Date();
