@@ -93,16 +93,6 @@ export default function Kitchen() {
                 Mark Ready
               </Button>
             )}
-            {order.status === 'ready' && (
-              <Button 
-                variant="secondary"
-                className="flex-1"
-                onClick={() => handleStatusChange(order.id, 'served')}
-              >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Mark Served
-              </Button>
-            )}
           </div>
         )}
       </CardContent>

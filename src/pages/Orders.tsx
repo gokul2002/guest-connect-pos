@@ -36,13 +36,14 @@ const tableStatusConfig: Record<TableStatus, { label: string; color: string; bgC
 };
 
 export default function Orders() {
-  const { menuItems, categories, menuLoading, addOrder, tableCount, getTableStatus } = usePOS();
+  const { menuItems, categories, menuLoading, addOrder, addItemsToOrder, tableCount, getTableStatus, getActiveOrderForTable } = usePOS();
   const { user } = useAuth();
   const { toast } = useToast();
   const { settings } = useRestaurantSettings();
   
   const [step, setStep] = useState<'table' | 'menu'>('table');
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
+  const [existingOrderId, setExistingOrderId] = useState<string | null>(null);
   
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -123,12 +124,21 @@ export default function Orders() {
 
   const handleSelectTable = (tableNum: number) => {
     setSelectedTable(tableNum);
+    const activeOrder = getActiveOrderForTable(tableNum);
+    if (activeOrder) {
+      setExistingOrderId(activeOrder.id);
+      setCustomerName(activeOrder.customerName || '');
+    } else {
+      setExistingOrderId(null);
+      setCustomerName('');
+    }
     setStep('menu');
   };
 
   const handleBackToTables = () => {
     setStep('table');
     setSelectedTable(null);
+    setExistingOrderId(null);
     setCart([]);
     setCustomerName('');
     setShowCart(false);
@@ -144,30 +154,46 @@ export default function Orders() {
       return;
     }
 
-    const { error } = await addOrder({
-      tableNumber: selectedTable,
-      customerName: customerName || undefined,
-      subtotal,
-      tax,
-      total,
-      createdBy: user?.id,
-      items: cart.map(item => ({
-        menuItemId: item.menuItemId,
-        menuItemName: item.menuItemName,
-        menuItemPrice: item.menuItemPrice,
-        quantity: item.quantity,
-        notes: item.notes,
-      })),
-    });
+    const itemsToAdd = cart.map(item => ({
+      menuItemId: item.menuItemId,
+      menuItemName: item.menuItemName,
+      menuItemPrice: item.menuItemPrice,
+      quantity: item.quantity,
+      notes: item.notes,
+    }));
+
+    let error: string | null = null;
+
+    if (existingOrderId) {
+      // Add items to existing order
+      const result = await addItemsToOrder(existingOrderId, itemsToAdd);
+      error = result.error;
+    } else {
+      // Create new order
+      const result = await addOrder({
+        tableNumber: selectedTable,
+        customerName: customerName || undefined,
+        subtotal,
+        tax,
+        total,
+        createdBy: user?.id,
+        items: itemsToAdd,
+      });
+      error = result.error;
+    }
 
     if (error) {
       toast({ title: 'Error', description: error, variant: 'destructive' });
       return;
     }
 
-    toast({ title: 'Order placed!', description: `Order for Table ${selectedTable} has been sent to the kitchen.` });
+    toast({ 
+      title: existingOrderId ? 'Items added!' : 'Order placed!', 
+      description: `${existingOrderId ? 'New items added to' : 'Order for'} Table ${selectedTable} has been sent to the kitchen.` 
+    });
     setCart([]);
     setCustomerName('');
+    setExistingOrderId(null);
     setShowCart(false);
     setStep('table');
     setSelectedTable(null);
@@ -243,7 +269,9 @@ export default function Orders() {
             </Button>
             <div className="flex-1">
               <h1 className="font-display text-xl md:text-3xl font-bold">Table {selectedTable}</h1>
-              <p className="text-xs md:text-sm text-muted-foreground">Add items to order</p>
+              <p className="text-xs md:text-sm text-muted-foreground">
+                {existingOrderId ? 'Add more items to existing order' : 'Add items to new order'}
+              </p>
             </div>
             <div className={`px-3 py-1.5 rounded-full text-xs font-medium ${tableStatusConfig[getTableStatus(selectedTable!)].bgColor} ${tableStatusConfig[getTableStatus(selectedTable!)].color}`}>
               {tableStatusConfig[getTableStatus(selectedTable!)].label}
@@ -362,7 +390,7 @@ export default function Orders() {
                 )}
 
                 <Button className="w-full h-10" size="lg" onClick={handlePlaceOrder} disabled={cart.length === 0}>
-                  Place Order
+                  {existingOrderId ? 'Add to Order' : 'Place Order'}
                 </Button>
               </CardContent>
             </Card>
@@ -433,7 +461,7 @@ export default function Orders() {
               {/* Fixed Place Order Button */}
               <div className="sticky bottom-0 p-4 bg-background border-t">
                 <Button className="w-full h-14 text-lg" size="lg" onClick={handlePlaceOrder} disabled={cart.length === 0}>
-                  Place Order - {currencySymbol}{total.toFixed(2)}
+                  {existingOrderId ? 'Add to Order' : 'Place Order'} - {currencySymbol}{total.toFixed(2)}
                 </Button>
               </div>
             </div>
