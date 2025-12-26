@@ -55,4 +55,6 @@ export interface RestaurantSettings {
   businessHoursClose: string;
   kitchenEnabled: boolean;
   tableCount: number;
+  kitchenPrinterName: string | null;
+  cashPrinterName: string | null;
 }

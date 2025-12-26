@@ -9,6 +9,8 @@ import { usePOS } from '@/contexts/POSContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
+import { usePrintService } from '@/hooks/usePrintService';
+import { OrderData } from '@/lib/qzTray';
 import {
   Select,
   SelectContent,
@@ -48,6 +50,7 @@ export default function Orders() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { settings } = useRestaurantSettings();
+  const { printOrder, isConnected } = usePrintService();
   
   const [step, setStep] = useState<'table' | 'menu'>('table');
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
@@ -186,11 +189,13 @@ export default function Orders() {
     }));
 
     let error: string | null = null;
+    let orderId: string | null = null;
 
     if (existingOrderId) {
       // Add items to existing order
       const result = await addItemsToOrder(existingOrderId, itemsToAdd);
       error = result.error;
+      orderId = existingOrderId;
     } else {
       // Create new order - check if kitchen is enabled
       const initialStatus = settings?.kitchenEnabled === false ? 'ready' : 'pending';
@@ -206,6 +211,7 @@ export default function Orders() {
         items: itemsToAdd,
       });
       error = result.error;
+      orderId = result.orderId ?? null;
     }
 
     if (error) {
@@ -213,11 +219,35 @@ export default function Orders() {
       return;
     }
 
+    // Auto-print receipts if QZ Tray is connected
+    if (isConnected && orderId) {
+      const orderData: OrderData = {
+        id: orderId,
+        tableNumber: selectedTable,
+        customerName: customerName || undefined,
+        items: cart.map(item => ({
+          menuItemName: item.menuItemName,
+          menuItemPrice: item.menuItemPrice,
+          quantity: item.quantity,
+        })),
+        subtotal,
+        tax,
+        total,
+        createdAt: new Date(),
+        orderSourceName: selectedOrderSource?.name,
+      };
+
+      // Print to kitchen only if kitchen is enabled
+      const printToKitchen = settings?.kitchenEnabled !== false;
+      await printOrder(orderData, printToKitchen);
+    }
+
     const orderTarget = selectedTable ? `Table ${selectedTable}` : selectedOrderSource?.name;
     const kitchenMsg = settings?.kitchenEnabled === false ? 'Order is ready for billing.' : 'Order sent to kitchen.';
+    const printMsg = isConnected ? ' Receipts printed.' : '';
     toast({ 
       title: existingOrderId ? 'Items added!' : 'Order placed!', 
-      description: `${existingOrderId ? 'New items added to' : 'Order for'} ${orderTarget}. ${existingOrderId ? '' : kitchenMsg}` 
+      description: `${existingOrderId ? 'New items added to' : 'Order for'} ${orderTarget}. ${existingOrderId ? '' : kitchenMsg}${printMsg}` 
     });
     setCart([]);
     setCustomerName('');
