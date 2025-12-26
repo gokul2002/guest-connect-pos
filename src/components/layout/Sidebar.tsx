@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
 import { Button } from '@/components/ui/button';
 
 const adminNavItems = [
@@ -38,6 +39,7 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, role, signOut } = useAuth();
+  const { settings } = useRestaurantSettings();
 
   const handleLogout = async () => {
     await signOut();
@@ -64,11 +66,21 @@ export function Sidebar() {
       <div className="flex h-full flex-col">
         {/* Logo */}
         <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary">
-            <Hotel className="h-5 w-5 text-primary-foreground" />
-          </div>
+          {settings?.restaurantLogoUrl ? (
+            <img
+              src={settings.restaurantLogoUrl}
+              alt="Restaurant Logo"
+              className="h-10 w-10 rounded-xl object-contain"
+            />
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary">
+              <Hotel className="h-5 w-5 text-primary-foreground" />
+            </div>
+          )}
           <div>
-            <h1 className="font-display text-lg font-bold text-sidebar-foreground">HotelPOS</h1>
+            <h1 className="font-display text-lg font-bold text-sidebar-foreground">
+              {settings?.restaurantName || 'HotelPOS'}
+            </h1>
             <p className="text-xs text-sidebar-foreground/60">Management System</p>
           </div>
         </div>
