@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, User, ChefHat, Shield, Search } from 'lucide-react';
+import { Plus, Trash2, User, ChefHat, Shield, Search, Pencil, MoreVertical } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Select,
   SelectContent,
@@ -49,13 +65,23 @@ export default function Staff() {
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
+    role: 'staff' as UserRole,
+  });
+
+  const [editFormData, setEditFormData] = useState({
+    name: '',
     role: 'staff' as UserRole,
   });
 
@@ -107,6 +133,90 @@ export default function Staff() {
       setIsDialogOpen(false);
       fetchStaff();
     }
+  };
+
+  const handleEditClick = (staff: StaffMember) => {
+    setSelectedStaff(staff);
+    setEditFormData({ name: staff.name, role: staff.role });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStaff) return;
+
+    setIsUpdating(true);
+    
+    // Update profile name
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ name: editFormData.name })
+      .eq('id', selectedStaff.id);
+
+    if (profileError) {
+      toast({ title: 'Error', description: profileError.message, variant: 'destructive' });
+      setIsUpdating(false);
+      return;
+    }
+
+    // Update role
+    const { error: roleError } = await supabase
+      .from('user_roles')
+      .update({ role: editFormData.role })
+      .eq('user_id', selectedStaff.id);
+
+    if (roleError) {
+      toast({ title: 'Error', description: roleError.message, variant: 'destructive' });
+      setIsUpdating(false);
+      return;
+    }
+
+    toast({ title: 'Staff Updated', description: `${editFormData.name} has been updated.` });
+    setIsEditDialogOpen(false);
+    setSelectedStaff(null);
+    setIsUpdating(false);
+    fetchStaff();
+  };
+
+  const handleDeleteClick = (staff: StaffMember) => {
+    setSelectedStaff(staff);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedStaff) return;
+
+    setIsDeleting(true);
+
+    // Delete from user_roles first (due to foreign key)
+    const { error: roleError } = await supabase
+      .from('user_roles')
+      .delete()
+      .eq('user_id', selectedStaff.id);
+
+    if (roleError) {
+      toast({ title: 'Error', description: roleError.message, variant: 'destructive' });
+      setIsDeleting(false);
+      return;
+    }
+
+    // Delete from profiles
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', selectedStaff.id);
+
+    if (profileError) {
+      toast({ title: 'Error', description: profileError.message, variant: 'destructive' });
+      setIsDeleting(false);
+      return;
+    }
+
+    toast({ title: 'Staff Deleted', description: `${selectedStaff.name} has been removed.` });
+    setIsDeleteDialogOpen(false);
+    setSelectedStaff(null);
+    setIsDeleting(false);
+    fetchStaff();
   };
 
   const stats = {
@@ -197,15 +307,82 @@ export default function Staff() {
                         <p className="text-xs text-muted-foreground">{user.email}</p>
                       </div>
                     </div>
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${roleColors[user.role]}`}>
-                      <RoleIcon className="h-3 w-3" />{user.role}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${roleColors[user.role]}`}>
+                        <RoleIcon className="h-3 w-3" />{user.role}
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditClick(user)}>
+                            <Pencil className="h-4 w-4 mr-2" />Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteClick(user)} className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </CardContent>
                 </Card>
               );
             })
           )}
         </div>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-[90vw] sm:max-w-md">
+            <DialogHeader><DialogTitle className="font-display">Edit Staff</DialogTitle></DialogHeader>
+            <form onSubmit={handleEditSubmit} className="space-y-3">
+              <div className="space-y-2">
+                <Label>Name *</Label>
+                <Input placeholder="Full name" value={editFormData.name} onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))} required />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" value={selectedStaff?.email || ''} disabled className="bg-muted" />
+              </div>
+              <div className="space-y-2">
+                <Label>Role *</Label>
+                <Select value={editFormData.role} onValueChange={(value: UserRole) => setEditFormData(prev => ({ ...prev, role: value }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="staff">Staff</SelectItem>
+                    <SelectItem value="chef">Chef</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                <Button type="submit" className="flex-1" disabled={isUpdating}>{isUpdating ? 'Saving...' : 'Save'}</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Staff Member?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete <strong>{selectedStaff?.name}</strong>? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </MainLayout>
   );
