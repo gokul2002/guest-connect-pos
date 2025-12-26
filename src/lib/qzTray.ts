@@ -78,46 +78,18 @@ const formatDateTime = (date: Date) => {
 };
 
 /**
- * Connect to QZ Tray
+ * Check if QZ Tray is connected (connection is initialized globally in App).
  */
-export async function connectQZ(): Promise<boolean> {
-  try {
-    if (!window.qz) {
-      console.error('QZ Tray library not loaded');
-      return false;
-    }
-    if (window.qz.websocket.isActive()) {
-      return true;
-    }
-    await window.qz.websocket.connect();
-    console.log('QZ Tray connected');
-    return true;
-  } catch (err) {
-    console.error('QZ Tray connection failed:', err);
-    return false;
+function ensureQzConnected(): { ok: true } | { ok: false; error: string } {
+  if (!window.qz) {
+    return { ok: false, error: "QZ Tray library not loaded" };
   }
+  if (!window.qz.websocket?.isActive?.()) {
+    return { ok: false, error: "QZ Tray is not connected. Start QZ Tray and refresh the app." };
+  }
+  return { ok: true };
 }
 
-/**
- * Disconnect from QZ Tray
- */
-export async function disconnectQZ(): Promise<void> {
-  try {
-    if (window.qz?.websocket.isActive()) {
-      await window.qz.websocket.disconnect();
-      console.log('QZ Tray disconnected');
-    }
-  } catch (err) {
-    console.error('QZ Tray disconnect error:', err);
-  }
-}
-
-/**
- * Check if QZ Tray is connected
- */
-export function isQZConnected(): boolean {
-  return window.qz?.websocket?.isActive() ?? false;
-}
 
 /**
  * Build Kitchen Receipt (KOT) ESC/POS data - NO IMAGE
@@ -300,46 +272,52 @@ function buildCashReceiptData(order: OrderData, settings: PrintSettings): QZPrin
 /**
  * Print Kitchen Receipt (KOT) - NO IMAGE
  */
-export async function printKitchenReceipt(order: OrderData, printerName: string, restaurantName: string): Promise<{ success: boolean; error?: string }> {
+export async function printKitchenReceipt(
+  order: OrderData,
+  printerName: string,
+  restaurantName: string
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const connected = await connectQZ();
-    if (!connected) {
-      return { success: false, error: 'QZ Tray is not running. Please start QZ Tray and try again.' };
-    }
-    
+    const check = ensureQzConnected();
+    if (check.ok === false) return { success: false, error: check.error };
+
     const config = window.qz.configs.create(printerName);
     const receiptData = buildKitchenReceiptData(order, restaurantName);
-    
+
     await window.qz.print(config, [receiptData]);
-    console.log('Kitchen receipt printed successfully');
+    console.log("Kitchen receipt printed successfully");
     return { success: true };
   } catch (err) {
-    console.error('Kitchen print error:', err);
-    return { success: false, error: err instanceof Error ? err.message : 'Failed to print kitchen receipt' };
+    console.error("Kitchen print error:", err);
+    return { success: false, error: err instanceof Error ? err.message : "Failed to print kitchen receipt" };
   }
 }
 
 /**
  * Print Cash Receipt - WITH IMAGE
  */
-export async function printCashReceipt(order: OrderData, printerName: string, settings: PrintSettings): Promise<{ success: boolean; error?: string }> {
+export async function printCashReceipt(
+  order: OrderData,
+  printerName: string,
+  settings: PrintSettings
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const connected = await connectQZ();
-    if (!connected) {
-      return { success: false, error: 'QZ Tray is not running. Please start QZ Tray and try again.' };
-    }
-    
+    const check = ensureQzConnected();
+    if (check.ok === false) return { success: false, error: check.error };
+
     const config = window.qz.configs.create(printerName);
     const receiptData = buildCashReceiptData(order, settings);
-    
+
     await window.qz.print(config, receiptData);
-    console.log('Cash receipt printed successfully');
+    console.log("Cash receipt printed successfully");
     return { success: true };
   } catch (err) {
-    console.error('Cash print error:', err);
-    return { success: false, error: err instanceof Error ? err.message : 'Failed to print cash receipt' };
+    console.error("Cash print error:", err);
+    return { success: false, error: err instanceof Error ? err.message : "Failed to print cash receipt" };
   }
 }
+
+
 
 /**
  * Print both receipts (Kitchen + Cash)

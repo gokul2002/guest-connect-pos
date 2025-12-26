@@ -29,7 +29,7 @@ export default function Settings() {
   const { orderSources, addOrderSource, updateOrderSource, deleteOrderSource, loading: orderSourcesLoading } = useOrderSources();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { isConnected, isConnecting, reconnect, testPrintReceipt } = usePrintService();
+  const { isConnected, status, error, testPrintReceipt } = usePrintService();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [localTableCount, setLocalTableCount] = useState(10);
@@ -742,26 +742,14 @@ export default function Settings() {
                   <WifiOff className="h-5 w-5 text-destructive" />
                 )}
                 <div>
-                  <p className="font-medium">
-                    QZ Tray {isConnected ? 'Connected' : 'Disconnected'}
-                  </p>
+                  <p className="font-medium">QZ Tray {isConnected ? "Connected" : "Disconnected"}</p>
                   <p className="text-xs text-muted-foreground">
-                    {isConnected 
-                      ? 'Ready to print receipts' 
-                      : 'Install QZ Tray from qz.io and ensure it is running'}
+                    {isConnected
+                      ? "Ready to print receipts"
+                      : error || (status === "connecting" ? "Connecting…" : "Install QZ Tray from qz.io and ensure it is running, then refresh the app")}
                   </p>
                 </div>
               </div>
-              {!isConnected && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={reconnect}
-                  disabled={isConnecting}
-                >
-                  {isConnecting ? 'Connecting...' : 'Reconnect'}
-                </Button>
-              )}
             </div>
 
             <Separator />
