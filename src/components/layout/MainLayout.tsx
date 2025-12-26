@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { MobileHeader } from './MobileHeader';
+import { OrderNotifications } from '@/components/notifications/OrderNotifications';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -25,6 +26,9 @@ export function MainLayout({ children }: MainLayoutProps) {
       
       {/* Mobile Bottom Navigation */}
       <BottomNav />
+      
+      {/* Floating Order Notifications */}
+      <OrderNotifications />
     </div>
   );
 }
