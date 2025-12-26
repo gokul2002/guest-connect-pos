@@ -404,34 +404,38 @@ export default function Orders() {
                 </div>
               </div>
               
-              <div className="p-4 space-y-4">
+              <div className="p-4 pb-8 space-y-4">
                 {/* Order Details */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="table-mobile" className="text-sm">Table No.</Label>
-                    <Input
-                      id="table-mobile"
-                      type="number"
-                      placeholder="1"
-                      value={tableNumber}
-                      onChange={(e) => setTableNumber(e.target.value)}
-                      className="h-11"
-                    />
+                    <Label htmlFor="table-mobile" className="text-sm font-medium">Table No.</Label>
+                    <Select value={tableNumber} onValueChange={setTableNumber}>
+                      <SelectTrigger className="h-12 mt-1">
+                        <SelectValue placeholder="Select Table" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                          <SelectItem key={num} value={num.toString()}>
+                            Table {num}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
-                    <Label htmlFor="customer-mobile" className="text-sm">Customer</Label>
+                    <Label htmlFor="customer-mobile" className="text-sm font-medium">Customer</Label>
                     <Input
                       id="customer-mobile"
-                      placeholder="Name"
+                      placeholder="Name (Optional)"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
-                      className="h-11"
+                      className="h-12 mt-1"
                     />
                   </div>
                 </div>
 
                 {/* Cart Items */}
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[35vh] overflow-y-auto">
                   {cart.length === 0 ? (
                     <p className="text-center text-muted-foreground py-8">
                       No items in cart
@@ -477,32 +481,34 @@ export default function Orders() {
                   )}
                 </div>
 
-                {/* Totals */}
-                {cart.length > 0 && (
-                  <div className="space-y-2 pt-4 border-t">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Subtotal</span>
-                      <span>₹{subtotal.toFixed(2)}</span>
+                {/* Totals & Place Order - Sticky at bottom */}
+                <div className="sticky bottom-0 bg-background pt-3 -mx-4 px-4 pb-4 border-t space-y-3">
+                  {cart.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>₹{subtotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Tax (5%)</span>
+                        <span>₹{tax.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-lg pt-1">
+                        <span>Total</span>
+                        <span className="text-primary">₹{total.toFixed(2)}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Tax (5%)</span>
-                      <span>₹{tax.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                      <span>Total</span>
-                      <span className="text-primary">₹{total.toFixed(2)}</span>
-                    </div>
-                  </div>
-                )}
+                  )}
 
-                <Button 
-                  className="w-full h-12 text-base" 
-                  size="lg"
-                  onClick={handlePlaceOrder}
-                  disabled={cart.length === 0}
-                >
-                  Place Order
-                </Button>
+                  <Button 
+                    className="w-full h-14 text-base font-semibold" 
+                    size="lg"
+                    onClick={handlePlaceOrder}
+                    disabled={cart.length === 0}
+                  >
+                    Place Order - ₹{total.toFixed(2)}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
