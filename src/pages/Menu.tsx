@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +8,6 @@ import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -22,106 +21,124 @@ import {
 } from '@/components/ui/select';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { usePOS } from '@/contexts/POSContext';
-import { categories } from '@/data/mockData';
-import { MenuItem } from '@/types/pos';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Menu() {
-  const { menuItems, setMenuItems } = usePOS();
+  const { menuItems, categories, menuLoading, addMenuItem, addCategory, updateMenuItem, deleteMenuItem, toggleMenuItemAvailability } = usePOS();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showAddCategory, setShowAddCategory] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
     price: '',
-    category: 'Main Course',
+    categoryId: '',
     description: '',
     available: true,
   });
 
+  const categoryNames = ['All', ...categories.map(c => c.name)];
+
   const filteredItems = menuItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = filterCategory === 'All' || item.category === filterCategory;
+    const matchesCategory = filterCategory === 'All' || item.categoryName === filterCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.price || !formData.category) {
-      toast({
-        title: 'Missing Information',
-        description: 'Please fill in all required fields.',
-        variant: 'destructive',
-      });
+    if (!formData.name || !formData.price) {
+      toast({ title: 'Missing Information', description: 'Please fill in all required fields.', variant: 'destructive' });
       return;
     }
 
-    if (editingItem) {
-      setMenuItems(prev => prev.map(item => 
-        item.id === editingItem.id
-          ? { ...item, ...formData, price: parseFloat(formData.price) }
-          : item
-      ));
-      toast({
-        title: 'Item Updated',
-        description: `${formData.name} has been updated.`,
-      });
-    } else {
-      const newItem: MenuItem = {
-        id: `item-${Date.now()}`,
-        ...formData,
+    if (editingItemId) {
+      const { error } = await updateMenuItem(editingItemId, {
+        name: formData.name,
         price: parseFloat(formData.price),
-      };
-      setMenuItems(prev => [...prev, newItem]);
-      toast({
-        title: 'Item Added',
-        description: `${formData.name} has been added to the menu.`,
+        categoryId: formData.categoryId || null,
+        description: formData.description,
+        available: formData.available,
       });
+      if (error) {
+        toast({ title: 'Error', description: error, variant: 'destructive' });
+      } else {
+        toast({ title: 'Item Updated', description: `${formData.name} has been updated.` });
+      }
+    } else {
+      const { error } = await addMenuItem({
+        name: formData.name,
+        price: parseFloat(formData.price),
+        categoryId: formData.categoryId || null,
+        description: formData.description,
+        available: formData.available,
+      });
+      if (error) {
+        toast({ title: 'Error', description: error, variant: 'destructive' });
+      } else {
+        toast({ title: 'Item Added', description: `${formData.name} has been added to the menu.` });
+      }
     }
-
     resetForm();
   };
 
   const resetForm = () => {
-    setFormData({ name: '', price: '', category: 'Main Course', description: '', available: true });
-    setEditingItem(null);
+    setFormData({ name: '', price: '', categoryId: '', description: '', available: true });
+    setEditingItemId(null);
     setIsDialogOpen(false);
   };
 
-  const handleEdit = (item: MenuItem) => {
-    setEditingItem(item);
+  const handleEdit = (item: typeof menuItems[0]) => {
+    setEditingItemId(item.id);
     setFormData({
       name: item.name,
       price: item.price.toString(),
-      category: item.category,
+      categoryId: item.categoryId || '',
       description: item.description || '',
       available: item.available,
     });
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: string, name: string) => {
-    setMenuItems(prev => prev.filter(item => item.id !== id));
-    toast({
-      title: 'Item Removed',
-      description: `${name} has been removed from the menu.`,
-    });
+  const handleDelete = async (id: string, name: string) => {
+    const { error } = await deleteMenuItem(id);
+    if (error) {
+      toast({ title: 'Error', description: error, variant: 'destructive' });
+    } else {
+      toast({ title: 'Item Removed', description: `${name} has been removed from the menu.` });
+    }
   };
 
-  const toggleAvailability = (id: string) => {
-    setMenuItems(prev => prev.map(item =>
-      item.id === id ? { ...item, available: !item.available } : item
-    ));
+  const handleToggleAvailability = async (id: string, available: boolean) => {
+    await toggleMenuItemAvailability(id, !available);
   };
 
-  const categoryStats = categories.slice(1).map(cat => ({
-    name: cat,
-    count: menuItems.filter(item => item.category === cat).length,
-  }));
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    const { error } = await addCategory(newCategoryName.trim());
+    if (error) {
+      toast({ title: 'Error', description: error, variant: 'destructive' });
+    } else {
+      toast({ title: 'Category Added', description: `${newCategoryName} category created.` });
+      setNewCategoryName('');
+      setShowAddCategory(false);
+    }
+  };
+
+  if (menuLoading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -132,55 +149,80 @@ export default function Menu() {
             <p className="text-sm text-muted-foreground">Manage menu items</p>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); else setIsDialogOpen(true); }}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="w-full sm:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Item
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-[90vw] sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="font-display">
-                  {editingItem ? 'Edit Item' : 'Add Item'}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name *</Label>
-                  <Input id="name" placeholder="Item name" value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} required />
+          <div className="flex gap-2">
+            <Dialog open={showAddCategory} onOpenChange={setShowAddCategory}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">Add Category</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-[90vw] sm:max-w-sm">
+                <DialogHeader>
+                  <DialogTitle className="font-display">Add Category</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <Input
+                    placeholder="Category name"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                  />
+                  <Button onClick={handleAddCategory} className="w-full">Add Category</Button>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); else setIsDialogOpen(true); }}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="w-full sm:w-auto">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Item
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-[90vw] sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="font-display">
+                    {editingItemId ? 'Edit Item' : 'Add Item'}
+                  </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-3">
                   <div className="space-y-2">
-                    <Label htmlFor="price">Price (₹) *</Label>
-                    <Input id="price" type="number" placeholder="0" value={formData.price} onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))} required />
+                    <Label htmlFor="name">Name *</Label>
+                    <Input id="name" placeholder="Item name" value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="price">Price (₹) *</Label>
+                      <Input id="price" type="number" placeholder="0" value={formData.price} onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Category</Label>
+                      <Select value={formData.categoryId} onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}>
+                        <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                        <SelectContent>
+                          {categories.map(cat => (<SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Category *</Label>
-                    <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {categories.slice(1).map(cat => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="description">Description</Label>
+                    <Input id="description" placeholder="Description (optional)" value={formData.description} onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))} />
                   </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label>Available</Label>
-                  <Switch checked={formData.available} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, available: checked }))} />
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <Button type="button" variant="outline" className="flex-1" onClick={resetForm}>Cancel</Button>
-                  <Button type="submit" className="flex-1">{editingItem ? 'Update' : 'Add'}</Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <div className="flex items-center justify-between">
+                    <Label>Available</Label>
+                    <Switch checked={formData.available} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, available: checked }))} />
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button type="button" variant="outline" className="flex-1" onClick={resetForm}>Cancel</Button>
+                    <Button type="submit" className="flex-1">{editingItemId ? 'Update' : 'Add'}</Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
-        {/* Category filters - horizontal scroll on mobile */}
+        {/* Category filters */}
         <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
-          {categories.map(cat => (
+          {categoryNames.map(cat => (
             <Button key={cat} variant={filterCategory === cat ? 'default' : 'secondary'} size="sm" onClick={() => setFilterCategory(cat)} className="whitespace-nowrap flex-shrink-0">
               {cat}
             </Button>
@@ -203,9 +245,9 @@ export default function Menu() {
                   <span className="text-sm font-bold text-primary">₹{item.price}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{item.category}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{item.categoryName}</span>
                   <div className="flex items-center gap-1">
-                    <Switch checked={item.available} onCheckedChange={() => toggleAvailability(item.id)} />
+                    <Switch checked={item.available} onCheckedChange={() => handleToggleAvailability(item.id, item.available)} />
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(item)}><Pencil className="h-3 w-3" /></Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(item.id, item.name)}><Trash2 className="h-3 w-3" /></Button>
                   </div>
@@ -216,7 +258,7 @@ export default function Menu() {
         </div>
 
         {filteredItems.length === 0 && (
-          <Card className="border-dashed"><CardContent className="p-8 text-center text-muted-foreground">No items found</CardContent></Card>
+          <Card className="border-dashed"><CardContent className="p-8 text-center text-muted-foreground">No items found. Add menu items to get started.</CardContent></Card>
         )}
       </div>
     </MainLayout>
