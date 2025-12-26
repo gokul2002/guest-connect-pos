@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Minus, ShoppingCart, Trash2, Search, Flame, ArrowUpDown, ArrowLeft, Users, UtensilsCrossed, Clock, CheckCircle } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Trash2, Search, ArrowUpDown, ArrowLeft, Users, UtensilsCrossed, Clock, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -166,7 +166,6 @@ export default function Orders() {
     }
 
     toast({ title: 'Order placed!', description: `Order for Table ${selectedTable} has been sent to the kitchen.` });
-
     setCart([]);
     setCustomerName('');
     setShowCart(false);
@@ -381,8 +380,8 @@ export default function Orders() {
         {/* Mobile Cart Sheet */}
         {showCart && (
           <div className="md:hidden fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" onClick={() => setShowCart(false)}>
-            <div className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom" onClick={(e) => e.stopPropagation()}>
-              <div className="sticky top-0 bg-background pt-2 pb-3 px-4 border-b">
+            <div className="absolute bottom-0 left-0 right-0 bg-background border-t rounded-t-2xl max-h-[80vh] overflow-hidden animate-in slide-in-from-bottom" onClick={(e) => e.stopPropagation()}>
+              <div className="sticky top-0 bg-background pt-2 pb-3 px-4 border-b z-10">
                 <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-3" />
                 <div className="flex items-center justify-between">
                   <h2 className="font-display text-lg font-bold flex items-center gap-2">
@@ -393,41 +392,46 @@ export default function Orders() {
                 </div>
               </div>
               
-              <div className="p-4 pb-8 space-y-4">
-                <div>
-                  <Label htmlFor="customer-mobile" className="text-sm font-medium">Customer Name</Label>
-                  <Input id="customer-mobile" placeholder="Name (Optional)" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-12 mt-1" />
-                </div>
+              <div className="overflow-y-auto" style={{ maxHeight: 'calc(80vh - 80px - 80px)' }}>
+                <div className="p-4 space-y-4">
+                  <div>
+                    <Label htmlFor="customer-mobile" className="text-sm font-medium">Customer Name</Label>
+                    <Input id="customer-mobile" placeholder="Name (Optional)" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-12 mt-1" />
+                  </div>
 
-                <div className="space-y-2 max-h-[35vh] overflow-y-auto">
-                  {cart.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">No items in cart</p>
-                  ) : (
-                    cart.map(item => (
-                      <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{item.menuItemName}</p>
-                          <p className="text-xs text-muted-foreground">{currencySymbol}{item.menuItemPrice} × {item.quantity}</p>
+                  <div className="space-y-2">
+                    {cart.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">No items in cart</p>
+                    ) : (
+                      cart.map(item => (
+                        <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm">{item.menuItemName}</p>
+                            <p className="text-xs text-muted-foreground">{currencySymbol}{item.menuItemPrice} × {item.quantity}</p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQuantity(item.id, -1)}><Minus className="h-4 w-4" /></Button>
+                            <span className="w-8 text-center font-medium">{item.quantity}</span>
+                            <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQuantity(item.id, 1)}><Plus className="h-4 w-4" /></Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => removeFromCart(item.id)}><Trash2 className="h-4 w-4" /></Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQuantity(item.id, -1)}><Minus className="h-4 w-4" /></Button>
-                          <span className="w-8 text-center font-medium">{item.quantity}</span>
-                          <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => updateQuantity(item.id, 1)}><Plus className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => removeFromCart(item.id)}><Trash2 className="h-4 w-4" /></Button>
-                        </div>
-                      </div>
-                    ))
+                      ))
+                    )}
+                  </div>
+
+                  {cart.length > 0 && (
+                    <div className="space-y-2 pt-4 border-t">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Subtotal (excl. tax)</span><span>{currencySymbol}{subtotal.toFixed(2)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Tax ({settings?.taxPercentage || 10}% incl.)</span><span>{currencySymbol}{tax.toFixed(2)}</span></div>
+                      <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>Total</span><span className="text-primary">{currencySymbol}{total.toFixed(2)}</span></div>
+                    </div>
                   )}
                 </div>
+              </div>
 
-                {cart.length > 0 && (
-                  <div className="space-y-2 pt-4 border-t">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Subtotal (excl. tax)</span><span>{currencySymbol}{subtotal.toFixed(2)}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Tax ({settings?.taxPercentage || 10}% incl.)</span><span>{currencySymbol}{tax.toFixed(2)}</span></div>
-                    <div className="flex justify-between font-bold text-lg pt-2 border-t"><span>Total</span><span className="text-primary">{currencySymbol}{total.toFixed(2)}</span></div>
-                  </div>
-                )}
-
+              {/* Fixed Place Order Button */}
+              <div className="sticky bottom-0 p-4 bg-background border-t">
                 <Button className="w-full h-14 text-lg" size="lg" onClick={handlePlaceOrder} disabled={cart.length === 0}>
                   Place Order - {currencySymbol}{total.toFixed(2)}
                 </Button>
