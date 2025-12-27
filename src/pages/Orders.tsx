@@ -9,8 +9,6 @@ import { usePOS } from '@/contexts/POSContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
-import { usePrintService } from '@/hooks/usePrintService';
-import { OrderData } from '@/lib/qzTray';
 import {
   Select,
   SelectContent,
@@ -50,7 +48,6 @@ export default function Orders() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { settings } = useRestaurantSettings();
-  const { printOrder, isConnected } = usePrintService();
   
   const [step, setStep] = useState<'table' | 'menu'>('table');
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
@@ -219,35 +216,14 @@ export default function Orders() {
       return;
     }
 
-    // Auto-print receipts if QZ Tray is connected
-    if (isConnected && orderId) {
-      const orderData: OrderData = {
-        id: orderId,
-        tableNumber: selectedTable,
-        customerName: customerName || undefined,
-        items: cart.map(item => ({
-          menuItemName: item.menuItemName,
-          menuItemPrice: item.menuItemPrice,
-          quantity: item.quantity,
-        })),
-        subtotal,
-        tax,
-        total,
-        createdAt: new Date(),
-        orderSourceName: selectedOrderSource?.name,
-      };
-
-      // Print to kitchen only if kitchen is enabled
-      const printToKitchen = settings?.kitchenEnabled !== false;
-      await printOrder(orderData, printToKitchen);
-    }
+    // Note: Printing is handled by useAutoPrint hook on desktop via realtime
+    // This allows orders placed from mobile to be printed on desktop
 
     const orderTarget = selectedTable ? `Table ${selectedTable}` : selectedOrderSource?.name;
     const kitchenMsg = settings?.kitchenEnabled === false ? 'Order is ready for billing.' : 'Order sent to kitchen.';
-    const printMsg = isConnected ? ' Receipts printed.' : '';
     toast({ 
       title: existingOrderId ? 'Items added!' : 'Order placed!', 
-      description: `${existingOrderId ? 'New items added to' : 'Order for'} ${orderTarget}. ${existingOrderId ? '' : kitchenMsg}${printMsg}` 
+      description: `${existingOrderId ? 'New items added to' : 'Order for'} ${orderTarget}. ${existingOrderId ? '' : kitchenMsg}` 
     });
     setCart([]);
     setCustomerName('');
