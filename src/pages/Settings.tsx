@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Minus, Table2, Save, Store, Clock, DollarSign, Percent, MapPin, Upload, Key, X, Image, Trash2, ShoppingBag, Bike, Utensils, Truck, Package, ChefHat } from 'lucide-react';
+import { Plus, Minus, Table2, Save, Store, Clock, DollarSign, Percent, MapPin, Upload, Key, X, Image, Trash2, Edit2, ShoppingBag, Bike, Utensils, Truck, Package, ChefHat, Printer, Wifi, WifiOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
 import { useOrderSources } from '@/hooks/useOrderSources';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { usePrintService } from '@/hooks/usePrintService';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
@@ -28,6 +29,8 @@ export default function Settings() {
   const { orderSources, addOrderSource, updateOrderSource, deleteOrderSource, loading: orderSourcesLoading } = useOrderSources();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isConnected, status, error, testPrintReceipt, reconnect } = usePrintService();
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [localTableCount, setLocalTableCount] = useState(10);
@@ -53,6 +56,13 @@ export default function Settings() {
   const [newSourceName, setNewSourceName] = useState('');
   const [newSourceIcon, setNewSourceIcon] = useState('package');
   const [isAddingSource, setIsAddingSource] = useState(false);
+
+  // Printer configuration state
+  const [kitchenPrinterName, setKitchenPrinterName] = useState('Kitchen Printer');
+  const [cashPrinterName, setCashPrinterName] = useState('Cash Printer');
+  const [isSavingPrinters, setIsSavingPrinters] = useState(false);
+  const [isTestingKitchen, setIsTestingKitchen] = useState(false);
+  const [isTestingCash, setIsTestingCash] = useState(false);
   const iconOptions = [
     { value: 'shopping-bag', label: 'Bag', Icon: ShoppingBag },
     { value: 'bike', label: 'Bike', Icon: Bike },
@@ -73,6 +83,8 @@ export default function Settings() {
       setBusinessHoursOpen(settings.businessHoursOpen);
       setBusinessHoursClose(settings.businessHoursClose);
       setKitchenEnabled(settings.kitchenEnabled);
+      setKitchenPrinterName(settings.kitchenPrinterName || 'Kitchen Printer');
+      setCashPrinterName(settings.cashPrinterName || 'Cash Printer');
     }
   }, [settings]);
 
@@ -276,6 +288,40 @@ export default function Settings() {
     }
   };
 
+  const handleSavePrinterSettings = async () => {
+    setIsSavingPrinters(true);
+    const { error } = await updateRestaurantSettings({
+      kitchenPrinterName,
+      cashPrinterName,
+    });
+    setIsSavingPrinters(false);
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: error,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Printer settings saved',
+        description: 'Printer configuration has been updated.',
+      });
+    }
+  };
+
+  const handleTestKitchenPrint = async () => {
+    setIsTestingKitchen(true);
+    await testPrintReceipt('kitchen');
+    setIsTestingKitchen(false);
+  };
+
+  const handleTestCashPrint = async () => {
+    setIsTestingCash(true);
+    await testPrintReceipt('cash');
+    setIsTestingCash(false);
+  };
+
   const hasTableChanges = localTableCount !== (settings?.tableCount ?? 10);
   const hasRestaurantChanges = settings && (
     restaurantName !== settings.restaurantName ||
@@ -285,6 +331,10 @@ export default function Settings() {
     currencySymbol !== settings.currencySymbol ||
     businessHoursOpen !== settings.businessHoursOpen ||
     businessHoursClose !== settings.businessHoursClose
+  );
+  const hasPrinterChanges = settings && (
+    kitchenPrinterName !== (settings.kitchenPrinterName || 'Kitchen Printer') ||
+    cashPrinterName !== (settings.cashPrinterName || 'Cash Printer')
   );
 
   return (
@@ -672,6 +722,133 @@ export default function Settings() {
           </CardContent>
         </Card>
 
+        {/* Printer Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Printer className="h-5 w-5" />
+              Printer Configuration
+            </CardTitle>
+            <CardDescription>
+              Configure QZ Tray thermal printers for automatic receipt printing
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Connection Status */}
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+              <div className="flex items-center gap-3">
+                {isConnected ? (
+                  <Wifi className="h-5 w-5 text-green-500" />
+                ) : (
+                  <WifiOff className="h-5 w-5 text-destructive" />
+                )}
+                <div>
+                  <p className="font-medium">QZ Tray {isConnected ? "Connected" : "Disconnected"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isConnected
+                      ? "Ready to print receipts"
+                      : error || (status === "connecting" ? "Connecting…" : "Install QZ Tray from qz.io and ensure it is running")}
+                  </p>
+                </div>
+              </div>
+              {!isConnected && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    setIsReconnecting(true);
+                    await reconnect();
+                    setIsReconnecting(false);
+                  }}
+                  disabled={isReconnecting || status === "connecting"}
+                >
+                  {isReconnecting || status === "connecting" ? "Connecting..." : "Reconnect"}
+                </Button>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Kitchen Printer */}
+            <div className="space-y-2">
+              <Label htmlFor="kitchen-printer" className="flex items-center gap-2">
+                <ChefHat className="h-4 w-4" />
+                Kitchen Printer Name (KOT)
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="kitchen-printer"
+                  value={kitchenPrinterName}
+                  onChange={(e) => setKitchenPrinterName(e.target.value)}
+                  placeholder="Enter exact printer name"
+                  className="flex-1 h-11"
+                />
+                <Button 
+                  variant="outline" 
+                  onClick={handleTestKitchenPrint}
+                  disabled={!isConnected || isTestingKitchen}
+                >
+                  {isTestingKitchen ? 'Printing...' : 'Test Print'}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Prints Kitchen Order Tickets (item name + quantity only, no prices)
+              </p>
+            </div>
+
+            {/* Cash Printer */}
+            <div className="space-y-2">
+              <Label htmlFor="cash-printer" className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                Cash Counter Printer Name
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="cash-printer"
+                  value={cashPrinterName}
+                  onChange={(e) => setCashPrinterName(e.target.value)}
+                  placeholder="Enter exact printer name"
+                  className="flex-1 h-11"
+                />
+                <Button 
+                  variant="outline" 
+                  onClick={handleTestCashPrint}
+                  disabled={!isConnected || isTestingCash}
+                >
+                  {isTestingCash ? 'Printing...' : 'Test Print'}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Prints full billing receipts with logo, prices, and totals
+              </p>
+            </div>
+
+            <Button 
+              onClick={handleSavePrinterSettings} 
+              disabled={!hasPrinterChanges || isSavingPrinters}
+              className="w-full sm:w-auto"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {isSavingPrinters ? 'Saving...' : 'Save Printer Settings'}
+            </Button>
+
+            {hasPrinterChanges && (
+              <p className="text-xs text-orange-500">
+                You have unsaved changes
+              </p>
+            )}
+
+            {/* Help text */}
+            <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+              <p className="text-sm font-medium">How to find printer names:</p>
+              <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                <li>Open Windows Settings → Printers & Scanners</li>
+                <li>Note the exact printer names (case-sensitive)</li>
+                <li>Enter the names exactly as shown in Windows</li>
+              </ol>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Order Sources Management */}
         <Card>
