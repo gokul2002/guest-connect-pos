@@ -24,7 +24,7 @@ interface QZConfig {
 }
 
 type QZPrintData = 
-  | string 
+  | { type: 'raw'; format: 'plain'; data: string }
   | { type: 'raw'; format: 'image'; flavor: 'file' | 'base64'; data: string; options?: { language: string; dotDensity: string } };
 
 export interface OrderData {
@@ -162,7 +162,7 @@ function buildCashReceiptData(order: OrderData, settings: PrintSettings): QZPrin
   const data: QZPrintData[] = [];
   
   // Initialize printer
-  data.push(INIT);
+  data.push({ type: 'raw', format: 'plain', data: INIT });
   
   // Add logo image if available (HTTPS URL)
   if (settings.restaurantLogoUrl) {
@@ -176,7 +176,7 @@ function buildCashReceiptData(order: OrderData, settings: PrintSettings): QZPrin
         dotDensity: 'double'
       }
     });
-    data.push(LINE_FEED);
+    data.push({ type: 'raw', format: 'plain', data: LINE_FEED });
   }
   
   // Header
@@ -193,7 +193,7 @@ function buildCashReceiptData(order: OrderData, settings: PrintSettings): QZPrin
   }
   
   header += doubleDivider + LINE_FEED;
-  data.push(header);
+  data.push({ type: 'raw', format: 'plain', data: header });
   
   // Order details
   let orderDetails = LEFT;
@@ -211,7 +211,7 @@ function buildCashReceiptData(order: OrderData, settings: PrintSettings): QZPrin
   }
   
   orderDetails += divider + LINE_FEED;
-  data.push(orderDetails);
+  data.push({ type: 'raw', format: 'plain', data: orderDetails });
   
   // Column headers for items
   // SN(3) Item(17) Qty(4) Price(8) Amt(10) = 42 chars
@@ -219,7 +219,7 @@ function buildCashReceiptData(order: OrderData, settings: PrintSettings): QZPrin
   itemHeader += padRight('SN', 3) + padRight('Item', 17) + padLeft('Qty', 4) + padLeft('Price', 8) + padLeft('Amt', 10) + LINE_FEED;
   itemHeader += BOLD_OFF;
   itemHeader += divider + LINE_FEED;
-  data.push(itemHeader);
+  data.push({ type: 'raw', format: 'plain', data: itemHeader });
   
   // Items
   let items = '';
@@ -236,7 +236,7 @@ function buildCashReceiptData(order: OrderData, settings: PrintSettings): QZPrin
     items += LINE_FEED;
   }
   items += divider + LINE_FEED;
-  data.push(items);
+  data.push({ type: 'raw', format: 'plain', data: items });
   
   // Totals
   let totals = '';
@@ -247,7 +247,7 @@ function buildCashReceiptData(order: OrderData, settings: PrintSettings): QZPrin
   totals += padRight('', 16) + padRight('TOTAL:', 8) + padLeft(currencySymbol + order.total.toFixed(2), 18) + LINE_FEED;
   totals += NORMAL_SIZE + BOLD_OFF;
   totals += doubleDivider + LINE_FEED;
-  data.push(totals);
+  data.push({ type: 'raw', format: 'plain', data: totals });
   
   // Payment method
   let payment = '';
@@ -255,7 +255,7 @@ function buildCashReceiptData(order: OrderData, settings: PrintSettings): QZPrin
     payment += `Payment Mode: ${order.paymentMethod.toUpperCase()}` + LINE_FEED;
   }
   payment += divider + LINE_FEED;
-  data.push(payment);
+  data.push({ type: 'raw', format: 'plain', data: payment });
   
   // Footer
   let footer = CENTER;
@@ -264,7 +264,7 @@ function buildCashReceiptData(order: OrderData, settings: PrintSettings): QZPrin
   footer += 'Visit Again!' + LINE_FEED;
   footer += LINE_FEED + LINE_FEED + LINE_FEED;
   footer += CUT;
-  data.push(footer);
+  data.push({ type: 'raw', format: 'plain', data: footer });
   
   return data;
 }
@@ -284,7 +284,12 @@ export async function printKitchenReceipt(
     const config = window.qz.configs.create(printerName);
     const receiptData = buildKitchenReceiptData(order, restaurantName);
 
-    await window.qz.print(config, [receiptData]);
+    // QZ Tray v2 requires data wrapped with type/format for raw printing
+    await window.qz.print(config, [{
+      type: 'raw',
+      format: 'plain',
+      data: receiptData
+    }]);
     console.log("Kitchen receipt printed successfully");
     return { success: true };
   } catch (err) {
