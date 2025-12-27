@@ -14,6 +14,7 @@ import Staff from "./pages/Staff";
 import Menu from "./pages/Menu";
 import Billing from "./pages/Billing";
 import Settings from "./pages/Settings";
+import PrinterConfig from "./pages/PrinterConfig";
 import OrderHistory from "./pages/OrderHistory";
 import NotFound from "./pages/NotFound";
 
@@ -79,6 +80,11 @@ function AppRoutes() {
       <Route path="/settings" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <Settings />
+        </ProtectedRoute>
+      } />
+      <Route path="/printer-config" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <PrinterConfig />
         </ProtectedRoute>
       } />
       <Route path="/order-history" element={
