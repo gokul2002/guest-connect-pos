@@ -24,7 +24,6 @@ function emit() {
 }
 
 function setSnapshot(next: Partial<QzConnectionSnapshot>) {
-  // Create a NEW frozen object each time to ensure React detects the change
   snapshot = Object.freeze({ ...snapshot, ...next });
   emit();
 }
@@ -32,8 +31,6 @@ function setSnapshot(next: Partial<QzConnectionSnapshot>) {
 function setUpSecurityPromises(qz: any) {
   if (!qz?.security) return;
 
-  // Optional: structure for certificate/signature signing (required for silent trust in production).
-  // For now, return empty strings to reduce repeated "Failed to get certificate" warnings during dev.
   if (typeof qz.security.setCertificatePromise === "function") {
     qz.security.setCertificatePromise(() => Promise.resolve(""));
   }
@@ -51,23 +48,36 @@ export function getQzConnectionSnapshot(): QzConnectionSnapshot {
   return snapshot;
 }
 
+async function waitForQzLibrary(timeout = 5000): Promise<any> {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const qz = (window as any).qz;
+    if (qz?.websocket?.connect) {
+      return qz;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return null;
+}
+
 export async function connectQzIfNeeded(): Promise<boolean> {
-  const qz = (window as any).qz;
+  // Wait for QZ library to load (CDN might be slow)
+  const qz = await waitForQzLibrary();
 
   if (!qz) {
-    setSnapshot({ status: "error", isConnected: false, error: "QZ Tray library not loaded" });
+    setSnapshot({ status: "error", isConnected: false, error: "QZ Tray library not loaded. Install QZ Tray from qz.io" });
     return false;
   }
 
   setUpSecurityPromises(qz);
 
+  // Check if already connected
   if (qz.websocket?.isActive?.()) {
-    if (snapshot.status !== "connected" || snapshot.isConnected !== true) {
-      setSnapshot({ status: "connected", isConnected: true, error: null });
-    }
+    setSnapshot({ status: "connected", isConnected: true, error: null });
     return true;
   }
 
+  // Prevent duplicate connection attempts
   if (connectPromise) return connectPromise;
 
   connectPromise = (async () => {
@@ -78,7 +88,11 @@ export async function connectQzIfNeeded(): Promise<boolean> {
       return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to connect to QZ Tray";
-      setSnapshot({ status: "error", isConnected: false, error: msg });
+      // Provide helpful error message
+      const userMsg = msg.includes("Unable to connect")
+        ? "QZ Tray is not running. Please start QZ Tray."
+        : msg;
+      setSnapshot({ status: "error", isConnected: false, error: userMsg });
       return false;
     } finally {
       connectPromise = null;
@@ -95,7 +109,8 @@ export async function initQzConnection(): Promise<void> {
 }
 
 export async function retryQzConnection(): Promise<boolean> {
-  // Allow manual retry even if previously initialized
+  // Reset state to allow fresh connection attempt
+  connectPromise = null;
   return connectQzIfNeeded();
 }
 
