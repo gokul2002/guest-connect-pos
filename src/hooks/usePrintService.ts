@@ -13,13 +13,16 @@ export function usePrintService() {
   const isConnected = qzConn.isConnected;
 
   /**
-   * Print order to both printers (assumes global QZ connection is already initialized in App).
+   * Print order to printers (assumes global QZ connection is already initialized in App).
+   * @param order - The order data to print
+   * @param printToKitchen - Whether to print to kitchen printer
+   * @param skipCash - If true, skip printing cash receipt (for dine-in orders)
    */
   const printOrder = useCallback(
-    async (order: OrderData, printToKitchen: boolean = true) => {
+    async (order: OrderData, printToKitchen: boolean = true, skipCash: boolean = false) => {
       if (!settings) {
         toast({ title: "Settings not loaded", description: "Please wait for settings to load", variant: "destructive" });
-        return { success: false };
+        return { success: false, kitchenSuccess: false, cashSuccess: false };
       }
 
       if (!isConnected) {
@@ -28,7 +31,7 @@ export function usePrintService() {
           description: qzConn.error || "Start QZ Tray and refresh the app.",
           variant: "destructive",
         });
-        return { success: false };
+        return { success: false, kitchenSuccess: false, cashSuccess: false };
       }
 
       const kitchenPrinter = settings.kitchenPrinterName || "Kitchen Printer";
@@ -42,14 +45,14 @@ export function usePrintService() {
         taxPercentage: settings.taxPercentage,
       };
 
-      const result = await printBothReceipts(order, kitchenPrinter, cashPrinter, printSettings, printToKitchen);
+      const result = await printBothReceipts(order, kitchenPrinter, cashPrinter, printSettings, printToKitchen, skipCash);
 
       if (result.errors.length > 0) {
         toast({ title: "Print Warning", description: result.errors.join("; "), variant: "destructive" });
       }
 
       return {
-        success: result.kitchenSuccess && result.cashSuccess,
+        success: result.kitchenSuccess && (skipCash || result.cashSuccess),
         kitchenSuccess: result.kitchenSuccess,
         cashSuccess: result.cashSuccess,
       };

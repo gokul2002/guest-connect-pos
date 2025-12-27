@@ -321,13 +321,15 @@ export async function printCashReceipt(
 
 /**
  * Print both receipts (Kitchen + Cash)
+ * @param skipCash - If true, skip printing the cash receipt (for dine-in orders)
  */
 export async function printBothReceipts(
   order: OrderData,
   kitchenPrinterName: string,
   cashPrinterName: string,
   settings: PrintSettings,
-  printToKitchen: boolean = true
+  printToKitchen: boolean = true,
+  skipCash: boolean = false
 ): Promise<{ kitchenSuccess: boolean; cashSuccess: boolean; errors: string[] }> {
   const errors: string[] = [];
   let kitchenSuccess = true;
@@ -342,11 +344,13 @@ export async function printBothReceipts(
     }
   }
   
-  // Print Cash Receipt
-  const cashResult = await printCashReceipt(order, cashPrinterName, settings);
-  cashSuccess = cashResult.success;
-  if (cashResult.error) {
-    errors.push(`Cash: ${cashResult.error}`);
+  // Print Cash Receipt (unless skipped for dine-in)
+  if (!skipCash) {
+    const cashResult = await printCashReceipt(order, cashPrinterName, settings);
+    cashSuccess = cashResult.success;
+    if (cashResult.error) {
+      errors.push(`Cash: ${cashResult.error}`);
+    }
   }
   
   return { kitchenSuccess, cashSuccess, errors };
