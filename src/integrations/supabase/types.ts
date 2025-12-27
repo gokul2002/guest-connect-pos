@@ -168,6 +168,7 @@ export type Database = {
           id: string
           is_paid: boolean
           order_source_id: string | null
+          parcel_charges: number
           payment_method: string | null
           status: string
           subtotal: number
@@ -183,6 +184,7 @@ export type Database = {
           id?: string
           is_paid?: boolean
           order_source_id?: string | null
+          parcel_charges?: number
           payment_method?: string | null
           status?: string
           subtotal?: number
@@ -198,6 +200,7 @@ export type Database = {
           id?: string
           is_paid?: boolean
           order_source_id?: string | null
+          parcel_charges?: number
           payment_method?: string | null
           status?: string
           subtotal?: number
