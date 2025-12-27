@@ -9,7 +9,8 @@ import {
   LogOut,
   Hotel,
   Settings,
-  ClipboardList
+  ClipboardList,
+  Printer
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +25,7 @@ const adminNavItems = [
   { to: '/menu', icon: UtensilsCrossed, label: 'Menu' },
   { to: '/staff', icon: Users, label: 'Staff' },
   { to: '/billing', icon: Receipt, label: 'Billing' },
+  { to: '/printer-config', icon: Printer, label: 'Printers' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
