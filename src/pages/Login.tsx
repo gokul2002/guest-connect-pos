@@ -1,42 +1,28 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Hotel, User, ChefHat, Shield, Eye, EyeOff } from 'lucide-react';
+import { Hotel, Eye, EyeOff, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
-import { UserRole } from '@/types/pos';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
-
-const roleOptions: { role: UserRole; icon: typeof User; label: string; description: string }[] = [
-  { role: 'admin', icon: Shield, label: 'Admin', description: 'Full access' },
-  { role: 'staff', icon: User, label: 'Staff', description: 'Orders & billing' },
-  { role: 'chef', icon: ChefHat, label: 'Chef', description: 'Kitchen display' },
-];
 
 const loginSchema = z.object({
   email: z.string().trim().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
-const signupSchema = loginSchema.extend({
-  name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long'),
-});
-
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('staff');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  const { signIn, signUp, user, role } = useAuth();
+  const { signIn, user, role } = useAuth();
   const { settings } = useRestaurantSettings();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -52,11 +38,8 @@ export default function Login() {
     }
   }, [user, role, navigate]);
 
-  const validateForm = (isSignup: boolean) => {
-    const schema = isSignup ? signupSchema : loginSchema;
-    const data = isSignup ? { email, password, name } : { email, password };
-    
-    const result = schema.safeParse(data);
+  const validateForm = () => {
+    const result = loginSchema.safeParse({ email, password });
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       result.error.errors.forEach((err) => {
@@ -73,7 +56,7 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm(false)) return;
+    if (!validateForm()) return;
     
     setIsLoading(true);
     const { error } = await signIn(email, password);
@@ -91,36 +74,6 @@ export default function Login() {
       toast({
         title: 'Welcome back!',
         description: 'You have successfully logged in.',
-      });
-    }
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm(true)) return;
-    
-    setIsLoading(true);
-    const { error } = await signUp(email, password, name, selectedRole);
-    setIsLoading(false);
-    
-    if (error) {
-      if (error.message.includes('already registered')) {
-        toast({
-          title: 'Account Exists',
-          description: 'This email is already registered. Please sign in instead.',
-          variant: 'destructive',
-        });
-      } else {
-        toast({
-          title: 'Signup Failed',
-          description: error.message,
-          variant: 'destructive',
-        });
-      }
-    } else {
-      toast({
-        title: 'Account Created!',
-        description: 'You can now sign in with your credentials.',
       });
     }
   };
@@ -150,142 +103,59 @@ export default function Login() {
           <CardTitle className="font-display text-xl md:text-2xl">
             {settings?.restaurantName || 'HotelPOS'}
           </CardTitle>
-          <CardDescription className="text-sm">Sign in or create an account</CardDescription>
+          <CardDescription className="text-sm">Sign in to your account</CardDescription>
         </CardHeader>
         
         <CardContent className="px-4 md:px-6">
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="login">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="login">
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
-                  <Input
-                    id="login-email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="h-11"
-                  />
-                  {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
-                </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="login-email">Email</Label>
+              <Input
+                id="login-email"
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-11"
+              />
+              {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+            </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="login-password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="h-11 pr-10"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-11 w-11"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                  {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
-                </div>
-
-                <Button type="submit" className="w-full h-11" size="lg" disabled={isLoading}>
-                  {isLoading ? 'Signing in...' : 'Sign In'}
+            <div className="space-y-2">
+              <Label htmlFor="login-password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-11 pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-11 w-11"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
-              </form>
-            </TabsContent>
-            
-            <TabsContent value="signup">
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name</Label>
-                  <Input
-                    id="signup-name"
-                    type="text"
-                    placeholder="Enter your name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    className="h-11"
-                  />
-                  {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="h-11"
-                  />
-                  {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
-                </div>
+              </div>
+              {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+            </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="signup-password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Create a password (min 6 chars)"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="h-11 pr-10"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-11 w-11"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                  {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
-                </div>
+            <Button type="submit" className="w-full h-11" size="lg" disabled={isLoading}>
+              {isLoading ? 'Signing in...' : 'Sign In'}
+            </Button>
+          </form>
 
-                <div className="space-y-2">
-                  <Label>Select Role</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {roleOptions.map((option) => (
-                      <Button
-                        key={option.role}
-                        type="button"
-                        variant={selectedRole === option.role ? 'default' : 'outline'}
-                        onClick={() => setSelectedRole(option.role)}
-                        className="h-auto py-3 flex-col gap-1"
-                      >
-                        <option.icon className="h-4 w-4" />
-                        <span className="text-xs">{option.label}</span>
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
-                <Button type="submit" className="w-full h-11" size="lg" disabled={isLoading}>
-                  {isLoading ? 'Creating account...' : 'Create Account'}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+          <div className="mt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground border-t pt-4">
+            <ShieldAlert className="h-4 w-4" />
+            <span>Need an account? Contact your administrator.</span>
+          </div>
         </CardContent>
       </Card>
     </div>
