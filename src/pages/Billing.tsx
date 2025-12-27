@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Printer, CreditCard, Banknote, Smartphone, Search, CheckCircle2 } from 'lucide-react';
+import { Printer, CreditCard, Banknote, Smartphone, Search, CheckCircle2, CalendarIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,15 +10,22 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
 import { usePrintService } from '@/hooks/usePrintService';
 import { DbOrder } from '@/hooks/useOrders';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, isSameDay } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { OrderData } from '@/lib/qzTray';
+import { cn } from '@/lib/utils';
 
 export default function Billing() {
   const { orders, ordersLoading, processPayment, orderSources } = usePOS();
@@ -29,6 +36,7 @@ export default function Billing() {
   const [selectedOrder, setSelectedOrder] = useState<DbOrder | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const receiptRef = useRef<HTMLDivElement>(null);
 
   // Helper to get order source name
@@ -38,8 +46,14 @@ export default function Billing() {
     return source?.name || null;
   };
 
-  const unpaidOrders = orders.filter(o => !o.isPaid && o.status !== 'cancelled');
-  const paidOrders = orders.filter(o => o.isPaid);
+  // Filter orders by selected date
+  const filterByDate = (order: DbOrder) => {
+    const orderDate = new Date(order.createdAt);
+    return isSameDay(orderDate, selectedDate);
+  };
+
+  const unpaidOrders = orders.filter(o => !o.isPaid && o.status !== 'cancelled' && filterByDate(o));
+  const paidOrders = orders.filter(o => o.isPaid && filterByDate(o));
 
   const filteredUnpaid = unpaidOrders.filter(order => {
     const sourceName = getOrderSourceName(order.orderSourceId) || '';
@@ -177,9 +191,8 @@ export default function Billing() {
     setShowReceipt(false);
   };
 
-  const todayTotal = paidOrders
-    .filter(o => new Date(o.updatedAt).toDateString() === new Date().toDateString())
-    .reduce((sum, o) => sum + o.total, 0);
+  const dateTotal = paidOrders.reduce((sum, o) => sum + o.total, 0);
+  const isToday = isSameDay(selectedDate, new Date());
 
   const currencySymbol = settings?.currencySymbol || '₹';
 
@@ -217,21 +230,46 @@ export default function Billing() {
           </Card>
           <Card className="border-success/30 bg-success/5">
             <CardContent className="p-3 md:p-4">
-              <p className="text-xl md:text-2xl font-bold text-success">{currencySymbol}{todayTotal.toLocaleString()}</p>
-              <p className="text-xs md:text-sm text-muted-foreground">Today</p>
+              <p className="text-xl md:text-2xl font-bold text-success">{currencySymbol}{dateTotal.toLocaleString()}</p>
+              <p className="text-xs md:text-sm text-muted-foreground">{isToday ? 'Today' : format(selectedDate, 'dd MMM')}</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search orders..."
-            className="pl-10 h-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        {/* Search and Date Filter */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search orders..."
+              className="pl-10 h-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "h-10 justify-start text-left font-normal min-w-[140px]",
+                  !selectedDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {selectedDate ? format(selectedDate, "dd MMM yyyy") : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => date && setSelectedDate(date)}
+                initialFocus
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Pending Payments */}
