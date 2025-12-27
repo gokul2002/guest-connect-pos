@@ -50,11 +50,44 @@ export default function Billing() {
   });
 
   const handlePayment = async (orderId: string, method: 'cash' | 'card' | 'upi') => {
+    // Find the order to check if it's dine-in
+    const order = orders.find(o => o.id === orderId);
+    const isDineIn = order && order.tableNumber !== null && !order.orderSourceId;
+
     const { error } = await processPayment(orderId, method);
     if (error) {
       toast({ title: 'Error', description: error, variant: 'destructive' });
-    } else {
-      toast({ title: 'Payment Successful', description: `Payment processed via ${method.toUpperCase()}.` });
+      return;
+    }
+
+    toast({ title: 'Payment Successful', description: `Payment processed via ${method.toUpperCase()}.` });
+
+    // Auto-print cash receipt for dine-in orders after payment
+    if (isDineIn && qzConnected && settings && order) {
+      const sourceName = getOrderSourceName(order.orderSourceId);
+      const orderData: OrderData = {
+        id: order.id,
+        tableNumber: order.tableNumber,
+        customerName: order.customerName || undefined,
+        items: order.items.map(item => ({
+          menuItemName: item.menuItemName,
+          menuItemPrice: item.menuItemPrice,
+          quantity: item.quantity,
+        })),
+        subtotal: order.subtotal,
+        tax: order.tax,
+        total: order.total,
+        createdAt: new Date(order.createdAt),
+        paymentMethod: method,
+        orderSourceName: sourceName || undefined,
+      };
+
+      // Print only cash receipt (KOT already printed when order was placed)
+      const result = await printOrder(orderData, false, false);
+      
+      if (result.success) {
+        toast({ title: 'Receipt Printed', description: 'Cash receipt sent to printer.' });
+      }
     }
   };
 

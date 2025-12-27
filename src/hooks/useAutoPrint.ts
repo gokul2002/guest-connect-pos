@@ -33,11 +33,12 @@ interface OrderItem {
  * - Marks orders as printed to prevent duplicates
  */
 export function useAutoPrint() {
+  // Get print service with updated 3-argument printOrder signature
   const { printOrder, isConnected } = usePrintService();
   const { settings } = useRestaurantSettings();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  
+
   // Track orders being processed to prevent race conditions
   const processingOrders = useRef<Set<string>>(new Set());
 
@@ -118,6 +119,12 @@ export function useAutoPrint() {
       // Fetch order source name if applicable
       const orderSourceName = await fetchOrderSourceName(order.order_source_id);
 
+      // Determine order type:
+      // - Dine-in: has table_number, no order_source_id
+      // - Delivery/Takeaway: has order_source_id
+      const isDineIn = order.table_number !== null && !order.order_source_id;
+      const isDeliveryOrTakeaway = order.order_source_id !== null;
+
       // Build order data for printing
       const orderData: OrderData = {
         id: order.id,
@@ -135,11 +142,22 @@ export function useAutoPrint() {
         orderSourceName,
       };
 
-      // Print to kitchen if enabled, always print cash receipt
+      // Printing logic based on order type:
+      // - Dine-in: Print ONLY KOT (kitchen), cash receipt prints from Billing after payment
+      // - Delivery/Takeaway: Print BOTH KOT + Cash immediately
       const printToKitchen = settings.kitchenEnabled !== false;
-      const result = await printOrder(orderData, printToKitchen);
+      const printToCash = isDeliveryOrTakeaway; // Only print cash for delivery/takeaway
 
-      if (result.success || result.cashSuccess) {
+      let result;
+      if (printToCash) {
+        // Delivery/Takeaway: Print both
+        result = await printOrder(orderData, printToKitchen);
+      } else {
+        // Dine-in: Print only KOT (import and use printKitchenOnly)
+        result = await printOrder(orderData, printToKitchen, true); // skipCash = true
+      }
+
+      if (result.success || result.kitchenSuccess) {
         // Mark as printed in database
         await markOrderAsPrinted(order.id);
 
@@ -147,9 +165,13 @@ export function useAutoPrint() {
           ? `Table ${order.table_number}` 
           : orderSourceName || "Order";
 
+        const printerMsg = isDineIn 
+          ? "kitchen" 
+          : (printToKitchen ? "kitchen & cash" : "cash");
+
         toast({
           title: "Order Auto-Printed",
-          description: `${location} - Sent to ${printToKitchen ? "kitchen & cash" : "cash"} printer`,
+          description: `${location} - Sent to ${printerMsg} printer`,
         });
       }
     } catch (error) {
