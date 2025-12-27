@@ -3,12 +3,16 @@ import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { MobileHeader } from './MobileHeader';
 import { OrderNotifications } from '@/components/notifications/OrderNotifications';
+import { useAutoPrint } from '@/hooks/useAutoPrint';
+import { Printer } from 'lucide-react';
 
 interface MainLayoutProps {
   children: ReactNode;
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
+  const { isAutoPrintEnabled } = useAutoPrint();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Desktop Sidebar */}
@@ -29,6 +33,14 @@ export function MainLayout({ children }: MainLayoutProps) {
       
       {/* Floating Order Notifications */}
       <OrderNotifications />
+
+      {/* Auto-Print Status Indicator (Desktop Only) */}
+      {isAutoPrintEnabled && (
+        <div className="hidden md:flex fixed bottom-4 right-4 items-center gap-2 bg-green-500/90 text-white px-3 py-2 rounded-full shadow-lg text-sm font-medium">
+          <Printer className="h-4 w-4" />
+          <span>Auto-Print Active</span>
+        </div>
+      )}
     </div>
   );
 }
