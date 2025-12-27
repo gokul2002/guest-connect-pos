@@ -167,7 +167,9 @@ export type Database = {
           customer_name: string | null
           id: string
           is_paid: boolean
+          order_number: string | null
           order_source_id: string | null
+          order_source_name: string | null
           parcel_charges: number
           payment_method: string | null
           status: string
@@ -183,7 +185,9 @@ export type Database = {
           customer_name?: string | null
           id?: string
           is_paid?: boolean
+          order_number?: string | null
           order_source_id?: string | null
+          order_source_name?: string | null
           parcel_charges?: number
           payment_method?: string | null
           status?: string
@@ -199,7 +203,9 @@ export type Database = {
           customer_name?: string | null
           id?: string
           is_paid?: boolean
+          order_number?: string | null
           order_source_id?: string | null
+          order_source_name?: string | null
           parcel_charges?: number
           payment_method?: string | null
           status?: string
