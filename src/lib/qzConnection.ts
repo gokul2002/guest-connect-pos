@@ -9,22 +9,23 @@ export type QzConnectionSnapshot = {
   error: string | null;
 };
 
-let snapshot: QzConnectionSnapshot = {
+let snapshot: QzConnectionSnapshot = Object.freeze({
   status: "idle",
   isConnected: false,
   error: null,
-};
+});
 
 const listeners = new Set<() => void>();
 let connectPromise: Promise<boolean> | null = null;
 let initialized = false;
 
 function emit() {
-  for (const l of listeners) l();
+  listeners.forEach((l) => l());
 }
 
 function setSnapshot(next: Partial<QzConnectionSnapshot>) {
-  snapshot = { ...snapshot, ...next };
+  // Create a NEW frozen object each time to ensure React detects the change
+  snapshot = Object.freeze({ ...snapshot, ...next });
   emit();
 }
 
