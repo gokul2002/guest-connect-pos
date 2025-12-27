@@ -81,17 +81,32 @@ export async function connectQzIfNeeded(): Promise<boolean> {
   if (connectPromise) return connectPromise;
 
   connectPromise = (async () => {
+    const CONNECT_TIMEOUT_MS = 8000;
+
+    const timeout = (ms: number) =>
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("QZ Tray connection timed out")), ms)
+      );
+
     try {
       setSnapshot({ status: "connecting", isConnected: false, error: null });
-      await qz.websocket.connect();
+
+      // Some environments never resolve/reject when QZ Tray isn't reachable.
+      // Race with a timeout so UI doesn't get stuck on "Connecting...".
+      await Promise.race([qz.websocket.connect(), timeout(CONNECT_TIMEOUT_MS)]);
+
       setSnapshot({ status: "connected", isConnected: true, error: null });
       return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to connect to QZ Tray";
-      // Provide helpful error message
-      const userMsg = msg.includes("Unable to connect")
-        ? "QZ Tray is not running. Please start QZ Tray."
-        : msg;
+
+      const userMsg =
+        msg.includes("timed out")
+          ? "QZ Tray connection timed out. Please start QZ Tray and approve the connection prompt (if shown)."
+          : msg.includes("Unable to connect")
+            ? "QZ Tray is not running. Please start QZ Tray."
+            : msg;
+
       setSnapshot({ status: "error", isConnected: false, error: userMsg });
       return false;
     } finally {
