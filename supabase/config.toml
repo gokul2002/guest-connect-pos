@@ -1,1 +1,4 @@
 project_id = "azeznceekwelgfbvdwlc"
+
+[functions.qz-sign]
+verify_jwt = false
