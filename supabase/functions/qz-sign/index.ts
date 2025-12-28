@@ -1,40 +1,49 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import * as crypto from "https://deno.land/std@0.208.0/crypto/mod.ts";
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
   // Only accept POST requests
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+    return new Response("Method not allowed", { status: 405 });
   }
 
   try {
     // Read raw text body EXACTLY as sent by QZ Tray (do NOT parse JSON, do NOT trim)
     const toSign = await req.text();
-    console.log("QZ Sign request received, data length:", toSign.length);
 
     // Validate input
     if (!toSign || typeof toSign !== "string") {
-      console.error("Invalid request body");
-      return new Response("Invalid request body", { status: 400, headers: corsHeaders });
+      return new Response("Invalid request body", { status: 400 });
     }
 
     // Get private key from Supabase secrets
+    // IMPORTANT: Store your private key in Supabase secrets as QZ_PRIVATE_KEY
+    // Command: supabase secrets set QZ_PRIVATE_KEY="$(cat qz-private.key)"
     const privateKeyPem = Deno.env.get("QZ_PRIVATE_KEY");
     if (!privateKeyPem) {
       console.error("QZ_PRIVATE_KEY not configured in Supabase secrets");
-      return new Response("", { status: 500, headers: corsHeaders });
+      return new Response("", { status: 500 });
     }
 
-    // Parse PKCS#8 PEM properly - convert PEM to DER
+    // Import the private key for signing
+    const privateKey = await crypto.subtle.importKey(
+      "pkcs8",
+      new TextEncoder().encode(
+        privateKeyPem
+          .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+          .replace(/-----END PRIVATE KEY-----/g, "")
+          .replace(/\s/g, ""),
+      ),
+      {
+        name: "RSASSA-PKCS1-v1_5",
+        hash: "SHA-256",
+      },
+      false,
+      ["sign"],
+    );
+
+    // Actually, we need to parse PKCS#8 PEM properly
+    // Use a helper function to convert PEM to DER
     const pemContent = privateKeyPem
       .replace(/-----BEGIN PRIVATE KEY-----/g, "")
       .replace(/-----END PRIVATE KEY-----/g, "")
@@ -55,34 +64,27 @@ serve(async (req) => {
         hash: "SHA-256",
       },
       false,
-      ["sign"]
+      ["sign"],
     );
 
     // Sign the EXACT raw string using RSA-SHA256 (PKCS#1 v1.5)
     const textEncoder = new TextEncoder();
     const data = textEncoder.encode(toSign);
-    const signature = await crypto.subtle.sign(
-      "RSASSA-PKCS1-v1_5",
-      key,
-      data
-    );
+    const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, data);
 
     // Convert signature ArrayBuffer to base64
     const signatureBytes = new Uint8Array(signature);
     const binarySignature = String.fromCharCode(...signatureBytes);
     const signatureBase64 = btoa(binarySignature);
 
-    console.log("QZ Sign successful, signature length:", signatureBase64.length);
-
     // Return ONLY the base64 signature as plain text (no JSON, no extra whitespace)
     return new Response(signatureBase64, {
       headers: {
-        ...corsHeaders,
         "Content-Type": "text/plain; charset=utf-8",
       },
     });
   } catch (error) {
     console.error("QZ signing error:", error);
-    return new Response("", { status: 500, headers: corsHeaders });
+    return new Response("", { status: 500 });
   }
 });
