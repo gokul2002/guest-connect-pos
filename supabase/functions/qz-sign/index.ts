@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-import * as crypto from "https://deno.land/std@0.208.0/crypto/mod.ts";
 
 serve(async (req) => {
   // Only accept POST requests
@@ -17,33 +16,13 @@ serve(async (req) => {
     }
 
     // Get private key from Supabase secrets
-    // IMPORTANT: Store your private key in Supabase secrets as QZ_PRIVATE_KEY
-    // Command: supabase secrets set QZ_PRIVATE_KEY="$(cat qz-private.key)"
     const privateKeyPem = Deno.env.get("QZ_PRIVATE_KEY");
     if (!privateKeyPem) {
       console.error("QZ_PRIVATE_KEY not configured in Supabase secrets");
       return new Response("", { status: 500 });
     }
 
-    // Import the private key for signing
-    const privateKey = await crypto.subtle.importKey(
-      "pkcs8",
-      new TextEncoder().encode(
-        privateKeyPem
-          .replace(/-----BEGIN PRIVATE KEY-----/g, "")
-          .replace(/-----END PRIVATE KEY-----/g, "")
-          .replace(/\s/g, ""),
-      ),
-      {
-        name: "RSASSA-PKCS1-v1_5",
-        hash: "SHA-256",
-      },
-      false,
-      ["sign"],
-    );
-
-    // Actually, we need to parse PKCS#8 PEM properly
-    // Use a helper function to convert PEM to DER
+    // Parse PKCS#8 PEM to DER
     const pemContent = privateKeyPem
       .replace(/-----BEGIN PRIVATE KEY-----/g, "")
       .replace(/-----END PRIVATE KEY-----/g, "")
@@ -55,8 +34,8 @@ serve(async (req) => {
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    // Import as PKCS#8 private key
-    const key = await crypto.subtle.importKey(
+    // Import as PKCS#8 private key using global crypto API
+    const key = await globalThis.crypto.subtle.importKey(
       "pkcs8",
       bytes.buffer,
       {
@@ -70,7 +49,7 @@ serve(async (req) => {
     // Sign the EXACT raw string using RSA-SHA256 (PKCS#1 v1.5)
     const textEncoder = new TextEncoder();
     const data = textEncoder.encode(toSign);
-    const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, data);
+    const signature = await globalThis.crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, data);
 
     // Convert signature ArrayBuffer to base64
     const signatureBytes = new Uint8Array(signature);
