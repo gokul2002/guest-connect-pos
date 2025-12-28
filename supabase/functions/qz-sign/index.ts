@@ -1,78 +1,114 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
 serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   // Only accept POST requests
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
 
   try {
-    // Read raw text body EXACTLY as sent by QZ Tray (do NOT parse JSON, do NOT trim)
+    // Read raw text body EXACTLY as sent by QZ Tray
     const toSign = await req.text();
+    console.log(`[QZ-SIGN] Received request to sign ${toSign.length} bytes`);
 
-    // Validate input
     if (!toSign || typeof toSign !== "string") {
-      return new Response("Invalid request body", { status: 400 });
+      console.error("[QZ-SIGN] Invalid request body");
+      return new Response("Invalid request body", { status: 400, headers: corsHeaders });
     }
 
     // Get private key from Supabase secrets
-    // IMPORTANT: Store your private key in Supabase secrets as QZ_PRIVATE_KEY
-    // Command: supabase secrets set QZ_PRIVATE_KEY="$(cat qz-private.key)"
     const privateKeyPem = Deno.env.get("QZ_PRIVATE_KEY");
     if (!privateKeyPem) {
-      console.error("QZ_PRIVATE_KEY not configured in Supabase secrets");
-      return new Response("", { status: 500 });
+      console.error(
+        "[QZ-SIGN] QZ_PRIVATE_KEY not found in secrets. Available env vars:",
+        Object.keys(Deno.env.toObject()),
+      );
+      return new Response("", { status: 500, headers: corsHeaders });
     }
 
-    // Parse PEM to get the base64 content
-    const pemContent = privateKeyPem
-      .replace(/-----BEGIN PRIVATE KEY-----/g, "")
-      .replace(/-----END PRIVATE KEY-----/g, "")
-      .replace(/\r?\n|\r/g, "")
-      .trim();
+    console.log("[QZ-SIGN] Private key loaded, length:", privateKeyPem.length);
 
-    // Decode base64 to binary
-    const binaryString = atob(pemContent);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+    try {
+      // Parse PEM to get the base64 content
+      const pemContent = privateKeyPem
+        .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+        .replace(/-----END PRIVATE KEY-----/g, "")
+        .replace(/\r?\n|\r/g, "")
+        .trim();
+
+      if (!pemContent) {
+        throw new Error("PEM content is empty after parsing");
+      }
+
+      console.log("[QZ-SIGN] PEM content length:", pemContent.length);
+
+      // Decode base64 to binary
+      const binaryString = atob(pemContent);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      console.log("[QZ-SIGN] Decoded key bytes:", bytes.length);
+
+      // Import as PKCS#8 private key
+      const privateKey = await crypto.subtle.importKey(
+        "pkcs8",
+        bytes.buffer,
+        {
+          name: "RSASSA-PKCS1-v1_5",
+          hash: "SHA-256",
+        },
+        false,
+        ["sign"],
+      );
+
+      console.log("[QZ-SIGN] Private key imported successfully");
+
+      // Sign the EXACT raw string using RSA-SHA256 (PKCS#1 v1.5)
+      const encoder = new TextEncoder();
+      const dataToSign = encoder.encode(toSign);
+
+      console.log("[QZ-SIGN] Data to sign bytes:", dataToSign.length);
+
+      const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", privateKey, dataToSign);
+
+      console.log("[QZ-SIGN] Signature generated, length:", new Uint8Array(signature).length);
+
+      // Convert signature ArrayBuffer to base64
+      const signatureBytes = new Uint8Array(signature);
+      let binarySignature = "";
+      for (let i = 0; i < signatureBytes.length; i++) {
+        binarySignature += String.fromCharCode(signatureBytes[i]);
+      }
+      const signatureBase64 = btoa(binarySignature);
+
+      console.log("[QZ-SIGN] Signature base64:", signatureBase64.substring(0, 100) + "...");
+
+      // Return ONLY the base64 signature as plain text
+      return new Response(signatureBase64, {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          ...corsHeaders,
+        },
+      });
+    } catch (innerError) {
+      console.error("[QZ-SIGN] Signing failed:", innerError);
+      return new Response("", { status: 500, headers: corsHeaders });
     }
-
-    // Import as PKCS#8 private key
-    const privateKey = await crypto.subtle.importKey(
-      "pkcs8",
-      bytes.buffer,
-      {
-        name: "RSASSA-PKCS1-v1_5",
-        hash: "SHA-256",
-      },
-      false,
-      ["sign"],
-    );
-
-    // Sign the EXACT raw string using RSA-SHA256 (PKCS#1 v1.5)
-    const encoder = new TextEncoder();
-    const dataToSign = encoder.encode(toSign);
-    const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", privateKey, dataToSign);
-
-    // Convert signature ArrayBuffer to base64
-    const signatureBytes = new Uint8Array(signature);
-    let binarySignature = "";
-    for (let i = 0; i < signatureBytes.length; i++) {
-      binarySignature += String.fromCharCode(signatureBytes[i]);
-    }
-    const signatureBase64 = btoa(binarySignature);
-
-    console.log(`[QZ-SIGN] Signed ${toSign.length} bytes, signature: ${signatureBase64.substring(0, 50)}...`);
-
-    // Return ONLY the base64 signature as plain text (no JSON, no extra whitespace)
-    return new Response(signatureBase64, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-      },
-    });
   } catch (error) {
-    console.error("[QZ-SIGN] Error:", error);
-    return new Response("", { status: 500 });
+    console.error("[QZ-SIGN] Fatal error:", error);
+    return new Response("", { status: 500, headers: corsHeaders });
   }
 });
