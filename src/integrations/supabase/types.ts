@@ -263,48 +263,60 @@ export type Database = {
         Row: {
           business_hours_close: string
           business_hours_open: string
+          cash_copies: number | null
           cash_printer_name: string | null
           created_at: string
           currency_symbol: string
+          dine_in_copies: number | null
           id: string
           kitchen_enabled: boolean
           kitchen_printer_name: string | null
+          kot_copies: number | null
           restaurant_address: string | null
           restaurant_logo_url: string | null
           restaurant_name: string
           table_count: number
+          take_away_copies: number | null
           tax_percentage: number
           updated_at: string
         }
         Insert: {
           business_hours_close?: string
           business_hours_open?: string
+          cash_copies?: number | null
           cash_printer_name?: string | null
           created_at?: string
           currency_symbol?: string
+          dine_in_copies?: number | null
           id?: string
           kitchen_enabled?: boolean
           kitchen_printer_name?: string | null
+          kot_copies?: number | null
           restaurant_address?: string | null
           restaurant_logo_url?: string | null
           restaurant_name?: string
           table_count?: number
+          take_away_copies?: number | null
           tax_percentage?: number
           updated_at?: string
         }
         Update: {
           business_hours_close?: string
           business_hours_open?: string
+          cash_copies?: number | null
           cash_printer_name?: string | null
           created_at?: string
           currency_symbol?: string
+          dine_in_copies?: number | null
           id?: string
           kitchen_enabled?: boolean
           kitchen_printer_name?: string | null
+          kot_copies?: number | null
           restaurant_address?: string | null
           restaurant_logo_url?: string | null
           restaurant_name?: string
           table_count?: number
+          take_away_copies?: number | null
           tax_percentage?: number
           updated_at?: string
         }
