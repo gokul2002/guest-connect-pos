@@ -172,6 +172,7 @@ export type Database = {
           order_source_name: string | null
           parcel_charges: number
           payment_method: string | null
+          printed_at: string | null
           status: string
           subtotal: number
           table_number: number | null
@@ -190,6 +191,7 @@ export type Database = {
           order_source_name?: string | null
           parcel_charges?: number
           payment_method?: string | null
+          printed_at?: string | null
           status?: string
           subtotal?: number
           table_number?: number | null
@@ -208,6 +210,7 @@ export type Database = {
           order_source_name?: string | null
           parcel_charges?: number
           payment_method?: string | null
+          printed_at?: string | null
           status?: string
           subtotal?: number
           table_number?: number | null
