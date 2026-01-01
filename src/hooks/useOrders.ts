@@ -34,21 +34,40 @@ export function useOrders() {
 
   const fetchOrders = useCallback(async () => {
     try {
+      // Limit to recent orders (last 30 days) to avoid hitting 1000 row limit
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select('*')
+        .gte('created_at', thirtyDaysAgo.toISOString())
         .order('created_at', { ascending: false });
       
       if (ordersError) throw ordersError;
 
-      const { data: itemsData, error: itemsError } = await supabase
-        .from('order_items')
-        .select('*');
+      // Get order IDs to fetch only relevant items
+      const orderIds = (ordersData || []).map(o => o.id);
       
-      if (itemsError) throw itemsError;
+      // Fetch items only for these orders (avoids 1000 row limit issue)
+      let allItems: any[] = [];
+      if (orderIds.length > 0) {
+        // Batch fetch items in chunks to handle large datasets
+        const chunkSize = 100;
+        for (let i = 0; i < orderIds.length; i += chunkSize) {
+          const chunk = orderIds.slice(i, i + chunkSize);
+          const { data: itemsData, error: itemsError } = await supabase
+            .from('order_items')
+            .select('*')
+            .in('order_id', chunk);
+          
+          if (itemsError) throw itemsError;
+          allItems = [...allItems, ...(itemsData || [])];
+        }
+      }
 
       const itemsByOrder = new Map<string, DbOrderItem[]>();
-      (itemsData || []).forEach(item => {
+      allItems.forEach(item => {
         const orderId = item.order_id;
         if (!itemsByOrder.has(orderId)) {
           itemsByOrder.set(orderId, []);
