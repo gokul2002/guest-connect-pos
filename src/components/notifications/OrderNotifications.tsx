@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 interface OrderNotification {
   id: string;
   orderId: string;
-  tableNumber: number | null;
+  tableNumber: string | null;
   status: string;
   message: string;
   timestamp: Date;
@@ -63,7 +63,7 @@ export function OrderNotifications() {
     }
   };
 
-  const getStatusMessage = (status: string, tableNumber: number | null) => {
+  const getStatusMessage = (status: string, tableNumber: string | null) => {
     const location = tableNumber ? `Table ${tableNumber}` : 'Delivery/Takeaway';
     switch (status) {
       case 'pending':

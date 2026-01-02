@@ -50,7 +50,7 @@ export default function Orders() {
   const { settings } = useRestaurantSettings();
   
   const [step, setStep] = useState<'table' | 'menu'>('table');
-  const [selectedTable, setSelectedTable] = useState<number | null>(null);
+  const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [selectedOrderSource, setSelectedOrderSource] = useState<{ id: string; name: string } | null>(null);
   const [existingOrderId, setExistingOrderId] = useState<string | null>(null);
   
@@ -135,7 +135,7 @@ export default function Orders() {
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const currencySymbol = settings?.currencySymbol || '₹';
 
-  const handleSelectTable = (tableNum: number) => {
+  const handleSelectTable = (tableNum: string) => {
     setSelectedTable(tableNum);
     setSelectedOrderSource(null);
     const activeOrder = getActiveOrderForTable(tableNum);
@@ -304,7 +304,7 @@ export default function Orders() {
             <div className="space-y-3">
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Dine-in Tables</h2>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                {Array.from({ length: tableCount }, (_, i) => i + 1).map((tableNum) => {
+                {Array.from({ length: tableCount }, (_, i) => String(i + 1)).map((tableNum) => {
                   const status = getTableStatus(tableNum);
                   const config = tableStatusConfig[status];
                   const StatusIcon = config.icon;

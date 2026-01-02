@@ -34,7 +34,7 @@ interface OrderItem {
 
 interface Order {
   id: string;
-  tableNumber: number;
+  tableNumber: string | null;
   status: 'pending' | 'preparing' | 'ready' | 'served' | 'cancelled';
   customerName: string | null;
   total: number;
@@ -170,7 +170,7 @@ export default function OrderHistory() {
   const filterOrders = (orderList: Order[]) => {
     if (!searchQuery) return orderList;
     return orderList.filter(order =>
-      order.tableNumber.toString().includes(searchQuery) ||
+      (order.tableNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -202,10 +202,10 @@ export default function OrderHistory() {
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold">
-                T{order.tableNumber}
+                {order.tableNumber ? `T${order.tableNumber}` : '-'}
               </div>
               <div>
-                <p className="font-medium">Table {order.tableNumber}</p>
+                <p className="font-medium">{order.tableNumber ? `Table ${order.tableNumber}` : 'No Table'}</p>
                 <p className="text-xs text-muted-foreground">
                   {order.customerName || 'Walk-in'} • {format(order.createdAt, 'HH:mm')}
                 </p>
