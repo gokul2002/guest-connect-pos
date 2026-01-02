@@ -8,7 +8,7 @@ import { OrderData } from "@/lib/qzTray";
 
 interface OrderWithItems {
   id: string;
-  table_number: number | null;
+  table_number: string | null;
   customer_name: string | null;
   subtotal: number;
   tax: number;

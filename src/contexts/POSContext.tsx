@@ -10,7 +10,7 @@ interface POSContextType {
   orders: DbOrder[];
   ordersLoading: boolean;
   addOrder: (orderData: {
-    tableNumber?: number | null;
+    tableNumber?: string | null;
     orderSourceId?: string | null;
     customerName?: string;
     subtotal: number;
@@ -35,8 +35,8 @@ interface POSContextType {
   }>) => Promise<{ error: string | null }>;
   updateOrderStatus: (orderId: string, status: DbOrder['status']) => Promise<{ error: string | null }>;
   processPayment: (orderId: string, method: 'cash' | 'card' | 'upi') => Promise<{ error: string | null }>;
-  getTableStatus: (tableNum: number) => 'free' | 'ordered' | 'preparing' | 'ready';
-  getActiveOrderForTable: (tableNum: number) => DbOrder | null;
+  getTableStatus: (tableNum: string) => 'free' | 'ordered' | 'preparing' | 'ready';
+  getActiveOrderForTable: (tableNum: string) => DbOrder | null;
   getActiveOrdersForSource: (sourceId: string) => DbOrder[];
   refetchOrders: () => Promise<void>;
 

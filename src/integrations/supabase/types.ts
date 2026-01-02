@@ -174,7 +174,7 @@ export type Database = {
           payment_method: string | null
           status: string
           subtotal: number
-          table_number: number | null
+          table_number: string | null
           tax: number
           total: number
           updated_at: string
@@ -192,7 +192,7 @@ export type Database = {
           payment_method?: string | null
           status?: string
           subtotal?: number
-          table_number?: number | null
+          table_number?: string | null
           tax?: number
           total?: number
           updated_at?: string
@@ -210,7 +210,7 @@ export type Database = {
           payment_method?: string | null
           status?: string
           subtotal?: number
-          table_number?: number | null
+          table_number?: string | null
           tax?: number
           total?: number
           updated_at?: string

@@ -12,7 +12,7 @@ export interface DbOrderItem {
 
 export interface DbOrder {
   id: string;
-  tableNumber: number | null;
+  tableNumber: string | null;
   orderSourceId: string | null;
   status: 'pending' | 'preparing' | 'ready' | 'served' | 'cancelled';
   customerName: string | null;
@@ -106,7 +106,7 @@ export function useOrders() {
   }, []);
 
   const addOrder = async (orderData: {
-    tableNumber?: number | null;
+    tableNumber?: string | null;
     orderSourceId?: string | null;
     customerName?: string;
     subtotal: number;
@@ -218,7 +218,7 @@ export function useOrders() {
     }
   };
 
-  const getActiveOrderForTable = useCallback((tableNum: number): DbOrder | null => {
+  const getActiveOrderForTable = useCallback((tableNum: string): DbOrder | null => {
     return orders.find(
       o => o.tableNumber === tableNum && !o.isPaid && o.status !== 'served' && o.status !== 'cancelled'
     ) || null;
@@ -258,7 +258,7 @@ export function useOrders() {
     return { error: null };
   };
 
-  const getTableStatus = useCallback((tableNum: number): 'free' | 'ordered' | 'preparing' | 'ready' => {
+  const getTableStatus = useCallback((tableNum: string): 'free' | 'ordered' | 'preparing' | 'ready' => {
     const tableOrders = orders.filter(
       o => o.tableNumber === tableNum && !o.isPaid && o.status !== 'served' && o.status !== 'cancelled'
     );

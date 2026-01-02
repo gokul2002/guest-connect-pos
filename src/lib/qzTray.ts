@@ -29,7 +29,7 @@ type QZPrintData =
 
 export interface OrderData {
   id: string;
-  tableNumber?: number | null;
+  tableNumber?: string | null;
   customerName?: string;
   items: {
     menuItemName: string;
@@ -367,7 +367,7 @@ export async function printBothReceipts(
 export async function testPrint(printerName: string, type: 'kitchen' | 'cash', settings: PrintSettings): Promise<{ success: boolean; error?: string }> {
   const sampleOrder: OrderData = {
     id: 'TEST12345678',
-    tableNumber: 5,
+    tableNumber: '5',
     customerName: 'Test Customer',
     items: [
       { menuItemName: 'Butter Chicken', menuItemPrice: 350, quantity: 2 },

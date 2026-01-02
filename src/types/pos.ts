@@ -31,7 +31,7 @@ export interface OrderItem {
 
 export interface Order {
   id: string;
-  tableNumber?: number;
+  tableNumber?: string;
   customerName?: string;
   items: OrderItem[];
   status: 'pending' | 'preparing' | 'ready' | 'served';
